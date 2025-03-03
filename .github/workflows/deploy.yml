@@ -102,23 +102,20 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install Docker
-            sudo apt-get update
-            sudo apt-get install -y docker.io
-            
             # Install Docker Compose
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
-            
-            # Configure permissions
+
+            # Configure Docker permissions
+            sudo groupadd docker || true
             sudo usermod -aG docker ec2-user
-            newgrp docker  # Refresh group permissions
-            
-            # Create app directory structure
+            sudo chmod 666 /var/run/docker.sock
+
+            # Create application directory
             mkdir -p /home/ec2-user/app
             cd /home/ec2-user/app
-            
+
             # Pull and deploy containers
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
-            docker-compose up -d
+            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+            sudo docker-compose up -d
