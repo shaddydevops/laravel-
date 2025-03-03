@@ -17,13 +17,25 @@ jobs:
         with:
           terraform_version: latest
 
-      # NEW DEBUG STEP HERE
+      # DEBUGGING STEP FOR AWS PERMISSIONS
       - name: Test AWS CLI Access (Debug)
         run: |
           echo "AWS Region: $AWS_REGION"
-          aws sts get-caller-identity  # Verify AWS credentials
-          aws s3 ls s3://your-terraform-state-bucket  # Check bucket listing permissions
-          aws s3api head-object --bucket your-terraform-state-bucket --key terraform.tfstate || echo "State file does not exist yet"
+          echo "Checking AWS credentials..."
+          aws sts get-caller-identity || echo "ERROR: Unable to get caller identity"
+          
+          echo "Checking S3 bucket listing permissions..."
+          aws s3 ls s3://shadrack-terraform-state-bucket || echo "ERROR: Cannot list S3 bucket contents"
+          
+          echo "Checking state file existence..."
+          aws s3api head-object --bucket shadrack-terraform-state-bucket --key terraform.tfstate || echo "State file does not exist yet"
+          
+          echo "Checking IAM policies attached to the current user..."
+          aws iam list-attached-user-policies --user-name shaddy || echo "ERROR: Unable to list attached policies"
+          
+          echo "Checking effective permissions on the S3 bucket..."
+          aws s3api get-bucket-policy --bucket shadrack-terraform-state-bucket || echo "ERROR: Cannot retrieve bucket policy"
+          
         working-directory: infrastructure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
