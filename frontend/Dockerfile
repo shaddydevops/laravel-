@@ -23,5 +23,5 @@ EXPOSE 3000
 # Build Next.js app
 RUN npm run build
 
-# Start the app
+# Start the app test
 CMD ["npm", "run", "start"]
