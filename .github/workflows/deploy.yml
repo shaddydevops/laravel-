@@ -20,6 +20,10 @@ jobs:
       - name: Initialize Terraform
         run: terraform init
         working-directory: infrastructure
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1  # Change this to your region
 
       - name: Apply Terraform
         run: terraform apply -auto-approve
@@ -27,6 +31,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1  # Change this to your region
 
   deploy:
     needs: terraform
@@ -35,16 +40,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      - name: SSH into EC2 and deploy
+        uses: appleboy/ssh-action@v0.1.7
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Pull Docker images
-        run: |
-          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
-          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
-
-      - name: Deploy using docker-compose
-        run: docker-compose up -d
+          host: ${{ secrets.EC2_PUBLIC_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ec2-user/app || (mkdir -p /home/ec2-user/app && cd /home/ec2-user/app)
+            git pull origin main
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+            docker-compose up -d
