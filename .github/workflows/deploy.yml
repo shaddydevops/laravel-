@@ -111,13 +111,13 @@ jobs:
             # Start and configure Docker
             sudo systemctl start docker
             sudo systemctl enable docker
-            sudo docker --version  # Should show 28.0.0+
+            sudo docker --version # Should show 28.0.0+
 
             # Install Docker Compose v2.33.1
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.33.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-            docker-compose --version  # Should show 2.33.1
+            docker-compose --version # Should show 2.33.1
 
             # Configure permissions
             sudo groupadd docker 2>/dev/null || true
@@ -129,8 +129,17 @@ jobs:
             sudo docker run hello-world
 
             # Deploy application with IPv4 support
-            exec sudo -u ec2-user -i /bin/bash -c '
-              mkdir -p ~/app
-              cd ~/app
-              docker compose version
-              docker compose up -d --enable-ipv4
+            mkdir -p ~/app
+            cd ~/app
+
+            # Verify docker-compose.yml exists and permissions
+            ls -l
+
+            # Verify environment and docker access
+            export PATH=$PATH:/usr/local/bin:/usr/bin
+            newgrp docker
+            docker compose version
+
+            # Attempt to start the application and capture logs
+            docker compose up -d --enable-ipv4
+            docker compose logs --tail="100" # Show the last 100 lines of logs for debugging.
