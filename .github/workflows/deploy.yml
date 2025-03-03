@@ -102,19 +102,25 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install Docker using Amazon Linux Extras
-            sudo amazon-linux-extras install docker
+            # Install Docker
+            sudo yum install docker -y
             sudo service docker start
-            sudo usermod -a -G docker ec2-user
-            newgrp docker
-            sudo systemctl enable docker
-            docker --version
 
-            # Install Docker Compose v2.33.1 (or latest as needed)
-            sudo curl -L "https://github.com/docker/compose/releases/download/v2.33.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            # Make Docker autostart (systemd)
+            sudo systemctl enable docker
+
+            # Install Git (recommended)
+            sudo yum install -y git
+
+            # Optional: Reboot (if necessary)
+            # sudo reboot
+
+            # Install Docker Compose (latest version)
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
-            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-            docker-compose --version
+
+            # Verify Docker Compose installation
+            docker-compose version
 
             # Deploy application with IPv4 support
             mkdir -p ~/app
