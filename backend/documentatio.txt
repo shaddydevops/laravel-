@@ -1,0 +1,139 @@
+# Laravel and Docker Debugging Report
+
+## Overview
+This document outlines the debugging steps, issues faced, and solutions implemented while setting up the Laravel application with Docker. It includes resolutions related to Docker configuration, Laravel environment setup, and application errors.
+
+---
+
+## Docker Setup Debugging
+
+### Issue 1: MySQL Database Not Found (`ERROR 1049 (42000): Unknown database 'clms_db'`)
+- **Cause:** The Laravel app tried to connect to the MySQL database before it was ready.
+- **Solution:**
+  - Modified the `docker-entrypoint.sh` script to include a loop that waits for the MySQL service to be available before running migrations.
+  - Ensured MySQL service had the correct environment variables in `docker-compose.yml`.
+
+### Issue 2: `.env` File and `APP_KEY` Error
+- **Error:** `No APP_KEY found. Generating... Unable to set application key. No APP_KEY variable was found in the .env file.`
+- **Cause:** The `.env` file was either missing or lacked proper permissions.
+- **Solution:**
+  - Verified the `.env` file exists within the Laravel container.
+  - Updated permissions using:
+    ```bash
+    chmod 777 /var/www/html/.env
+    ```
+  - Ran:
+    ```bash
+    php artisan key:generate
+    ```
+    to successfully generate the `APP_KEY`.
+
+### Issue 3: Automating Key Generation and Migrations
+- **Solution:**
+  - Created `docker-entrypoint.sh` to automate:
+    - `php artisan key:generate`
+    - `php artisan migrate --force`
+  - Ensured the script is executable:
+    ```bash
+    chmod +x docker-entrypoint.sh
+    ```
+  - Updated Dockerfile to copy and use this script.
+
+---
+
+## Laravel Application Debugging
+
+### Issue 4: `MissingAppKeyException`
+- **Error:** `Illuminate\Encryption\MissingAppKeyException No application encryption key has been specified.`
+- **Cause:** The Laravel app couldn't find `APP_KEY` in `.env`.
+- **Solution:**
+  - Ensured `.env` file was loaded.
+  - Verified key generation and caching configuration with:
+    ```bash
+    php artisan config:cache
+    ```
+
+### Issue 5: View Not Found (`InvalidArgumentException View [welcome] not found.`)
+- **Cause:** The route was pointing to a non-existent `welcome.blade.php` view.
+- **Solution:**
+  - Updated `routes/web.php` to point to `index.blade.php`:
+    ```php
+    Route::get('/', function () {
+        return view('index');
+    });
+    ```
+
+### Issue 6: Health Endpoint Testing
+- **Check:** Verified `/health` endpoint returns expected JSON response:
+  ```json
+  {"status":"ok"}
+  ```
+
+---
+
+## Improvements and Automation
+
+- **Docker Entrypoint Script:**
+  - Automates environment setup.
+  - Ensures the app waits for the database before running migrations.
+
+- **Enhanced `.env` Handling:**
+  - Added checks and permissions in the entrypoint to avoid missing key issues.
+
+- **Routes Fixes:**
+  - Corrected route views to avoid `View not found` errors.
+
+---
+
+## Conclusion
+This report documents the debugging process and solutions implemented to successfully run the Laravel application within Docker. The automation introduced in the entrypoint script enhances the deployment workflow, reducing manual steps.
+
+---
+
+## Appendix
+
+### Dockerfile Changes
+- Installed PHP extensions.
+- Copied `docker-entrypoint.sh`.
+- Set proper permissions.
+
+### Docker Compose Updates
+- Defined services for Laravel, MySQL, and phpMyAdmin.
+- Configured environment variables for MySQL.
+- Linked services properly.
+
+### Sample `docker-entrypoint.sh`
+```bash
+#!/bin/bash
+
+# Wait for MySQL
+until mysql -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" -e ''
+do
+  echo "Waiting for database..."
+  sleep 2
+done
+
+# Run Laravel commands
+php artisan key:generate
+php artisan migrate --force
+
+# Start Apache
+apache2-foreground
+```
+
+### Sample `.env` Config
+```ini
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=base64:YOUR_GENERATED_KEY
+APP_DEBUG=true
+APP_URL=http://localhost
+
+DB_CONNECTION=mysql
+DB_HOST=mysql_db
+DB_PORT=3306
+DB_DATABASE=clms_db
+DB_USERNAME=root
+DB_PASSWORD=rootpassword
+```
+
