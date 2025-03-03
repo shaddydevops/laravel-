@@ -102,16 +102,20 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install Docker Compose
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
 
             # Configure permissions
-            sudo groupadd docker || true
+            sudo groupadd docker 2>/dev/null || true
             sudo usermod -aG docker ec2-user
+            sudo mkdir -p /var/run/docker
+            sudo ln -s /var/run/docker.sock /var/run/docker/docker.sock 2>/dev/null || true
             sudo chown root:docker /var/run/docker.sock
             sudo chmod 660 /var/run/docker.sock
-            source ~/.bashrc  # Refresh environment
+
+            # Verify installation
+            docker --version
+            docker-compose --version
 
             # Create app directory
             mkdir -p /home/ec2-user/app
