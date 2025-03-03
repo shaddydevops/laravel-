@@ -106,16 +106,18 @@ jobs:
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
 
-            # Configure Docker permissions
+            # Configure permissions
             sudo groupadd docker || true
             sudo usermod -aG docker ec2-user
-            sudo chmod 666 /var/run/docker.sock
+            sudo chown root:docker /var/run/docker.sock
+            sudo chmod 660 /var/run/docker.sock
+            source ~/.bashrc  # Refresh environment
 
-            # Create application directory
+            # Create app directory
             mkdir -p /home/ec2-user/app
             cd /home/ec2-user/app
 
             # Pull and deploy containers
-            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
-            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
-            sudo docker-compose up -d
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+            docker-compose up -d
