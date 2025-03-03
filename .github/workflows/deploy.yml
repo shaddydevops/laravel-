@@ -102,26 +102,35 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
+            sudo yum install -y yum-utils
+            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            sudo yum install -y docker-ce docker-ce-cli containerd.io
+            
+            # Start and enable Docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            
+            # Verify Docker installation
+            sudo docker --version
+            
+            # Install Docker Compose
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
-
+            sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
             # Configure permissions
             sudo groupadd docker 2>/dev/null || true
             sudo usermod -aG docker ec2-user
-            sudo mkdir -p /var/run/docker
-            sudo ln -s /var/run/docker.sock /var/run/docker/docker.sock 2>/dev/null || true
-            sudo chown root:docker /var/run/docker.sock
-            sudo chmod 660 /var/run/docker.sock
-
-            # Verify installation
-            docker --version
-            docker-compose --version
-
+            sudo chmod 666 /var/run/docker.sock
+            
+            # Verify socket exists
+            sudo ls -l /var/run/docker.sock
+            
             # Create app directory
             mkdir -p /home/ec2-user/app
             cd /home/ec2-user/app
-
-            # Pull and deploy containers
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
-            docker-compose up -d
+            
+            # Pull and deploy containers using absolute paths
+            /usr/bin/docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+            /usr/bin/docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+            /usr/local/bin/docker-compose up -d
