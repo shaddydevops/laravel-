@@ -102,31 +102,19 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install latest Docker Engine (v28.0+)
-            sudo yum remove -y docker* containerd runc
-            sudo yum install -y yum-utils
-            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            sudo yum install -y docker-ce-28.0.0 docker-ce-cli-28.0.0 containerd.io
-
-            # Start and configure Docker
-            sudo systemctl start docker
+            # Install Docker using Amazon Linux Extras
+            sudo amazon-linux-extras install docker
+            sudo service docker start
+            sudo usermod -a -G docker ec2-user
+            newgrp docker
             sudo systemctl enable docker
-            sudo docker --version # Should show 28.0.0+
+            docker --version
 
-            # Install Docker Compose v2.33.1
+            # Install Docker Compose v2.33.1 (or latest as needed)
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.33.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-            docker-compose --version # Should show 2.33.1
-
-            # Configure permissions
-            sudo groupadd docker 2>/dev/null || true
-            sudo usermod -aG docker ec2-user
-            sudo chmod 660 /var/run/docker.sock
-            sudo systemctl restart docker
-
-            # Verify installation
-            sudo docker run hello-world
+            docker-compose --version
 
             # Deploy application with IPv4 support
             mkdir -p ~/app
@@ -137,9 +125,8 @@ jobs:
 
             # Verify environment and docker access
             export PATH=$PATH:/usr/local/bin:/usr/bin
-            newgrp docker
             docker compose version
 
             # Attempt to start the application and capture logs
             docker compose up -d --enable-ipv4
-            docker compose logs --tail="100" # Show the last 100 lines of logs for debugging.
+            docker compose logs --tail="100"
