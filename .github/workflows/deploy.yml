@@ -102,35 +102,32 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            sudo yum install -y yum-utils
-            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            sudo yum install -y docker-ce docker-ce-cli containerd.io
-            
-            # Start and enable Docker
+            sudo amazon-linux-extras enable docker
+            sudo yum clean metadata
+            sudo yum install -y docker
+
+            # Start and verify Docker
             sudo systemctl start docker
             sudo systemctl enable docker
-            
-            # Verify Docker installation
             sudo docker --version
-            
+
             # Install Docker Compose
             sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-            
-            # Configure permissions
+
+            # Configure permissions without manual socket modification
             sudo groupadd docker 2>/dev/null || true
             sudo usermod -aG docker ec2-user
-            sudo chmod 666 /var/run/docker.sock
-            
-            # Verify socket exists
-            sudo ls -l /var/run/docker.sock
-            
-            # Create app directory
-            mkdir -p /home/ec2-user/app
-            cd /home/ec2-user/app
-            
-            # Pull and deploy containers using absolute paths
-            /usr/bin/docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
-            /usr/bin/docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
-            /usr/local/bin/docker-compose up -d
+            sudo systemctl restart docker
+
+            # Verify Docker functionality
+            sudo docker run hello-world
+
+            # Deploy application
+            exec sudo -u ec2-user -i /bin/bash -c '
+              mkdir -p ~/app
+              cd ~/app
+              docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+              docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+              docker-compose up -d
