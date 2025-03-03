@@ -51,7 +51,7 @@ jobs:
           AWS_REGION: us-east-1
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: terraform plan -out=tfplan -var="ami_id=${{ secrets.AWS_AMI_ID }}"
         working-directory: infrastructure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
