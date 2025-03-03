@@ -8,6 +8,8 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    outputs:
+      ec2_public_ip: ${{ steps.get-ip.outputs.ec2_public_ip }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -17,25 +19,14 @@ jobs:
         with:
           terraform_version: latest
 
-      # DEBUGGING STEP FOR AWS PERMISSIONS
       - name: Test AWS CLI Access (Debug)
         run: |
           echo "AWS Region: $AWS_REGION"
-          echo "Checking AWS credentials..."
           aws sts get-caller-identity || echo "ERROR: Unable to get caller identity"
-          
-          echo "Checking S3 bucket listing permissions..."
           aws s3 ls s3://shadrack-terraform-state-bucket || echo "ERROR: Cannot list S3 bucket contents"
-          
-          echo "Checking state file existence..."
           aws s3api head-object --bucket shadrack-terraform-state-bucket --key terraform.tfstate || echo "State file does not exist yet"
-          
-          echo "Checking IAM policies attached to the current user..."
           aws iam list-attached-user-policies --user-name shaddy || echo "ERROR: Unable to list attached policies"
-          
-          echo "Checking effective permissions on the S3 bucket..."
           aws s3api get-bucket-policy --bucket shadrack-terraform-state-bucket || echo "ERROR: Cannot retrieve bucket policy"
-          
         working-directory: infrastructure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -51,19 +42,26 @@ jobs:
           AWS_REGION: us-east-1
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -var="ami_id=${{ secrets.AWS_AMI_ID }}"
+        run: terraform plan -out=tfplan -var="ami_id=${{ secrets.AWS_AMI_ID }}" -var="key_name=${{ secrets.EC2_SSH_PRIVATE_KEY_NAME }}"
         working-directory: infrastructure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
 
-      - name: Show Terraform Plan
-        run: terraform show -json tfplan > plan.json
-        working-directory: infrastructure
-
       - name: Apply Terraform
         run: terraform apply -auto-approve
+        working-directory: infrastructure
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+
+      - name: Capture EC2 Public IP
+        id: get-ip
+        run: |
+          EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)
+          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
         working-directory: infrastructure
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -94,13 +92,13 @@ jobs:
           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
 
   deploy:
-    needs: build-and-push
+    needs: [terraform, build-and-push]
     runs-on: ubuntu-latest
     steps:
       - name: SSH into EC2 and deploy
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_PUBLIC_IP }}
+          host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
