@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # ========================
-  # Frontend Service (React/Next.js/Vue)
+  # Frontend Service (Next.js)
   # ========================
   frontend:
     build:
@@ -16,7 +16,7 @@ services:
     networks:
       - laravel_network
     depends_on:
-      - app  # Wait for backend to initialize first
+      - app
     restart: unless-stopped
 
   # ========================
@@ -32,13 +32,11 @@ services:
     volumes:
       - vendor:/var/www/html/vendor
     environment:
-      - APP_ENV=local
-      - APP_DEBUG=true
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_DATABASE=clms_db
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
     networks:
       - laravel_network
     depends_on:
@@ -50,15 +48,15 @@ services:
                echo 'Waiting for database...'; \
                sleep 3; \
              done && \
-             php artisan key:generate --force && \
-             php artisan migrate --force && \
-             php artisan db:seed --force && \
+             php artisan key:generate && \
+             php artisan migrate --no-interaction && \
+             php artisan db:seed --no-interaction && \
              php artisan config:cache && \
              apache2-foreground"
     restart: unless-stopped
 
   # ========================
-  # Database (MySQL)
+  # Database Service (MySQL)
   # ========================
   db:
     image: mysql:8.0
@@ -66,8 +64,10 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: clms_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - dbdata:/var/lib/mysql
     networks:
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
 
   # ========================
-  # phpMyAdmin
+  # phpMyAdmin Service
   # ========================
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
