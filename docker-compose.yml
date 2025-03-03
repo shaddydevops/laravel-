@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # ========================
+  # Frontend Service (React/Next.js/Vue)
+  # ========================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clms_frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    networks:
+      - laravel_network
+    depends_on:
+      - app  # Wait for backend to initialize first
+    restart: unless-stopped
+
+  # ========================
+  # Backend Service (Laravel)
+  # ========================
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    ports:
+      - "8000:80"
+    volumes:
+      - vendor:/var/www/html/vendor
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=clms_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    networks:
+      - laravel_network
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "if [ ! -f .env ]; then cp .env.example .env; fi && \
+             until mysqladmin ping -h\"$$DB_HOST\" -u\"$$DB_USERNAME\" -p\"$$DB_PASSWORD\" --silent; do \
+               echo 'Waiting for database...'; \
+               sleep 3; \
+             done && \
+             php artisan key:generate --force && \
+             php artisan migrate --force && \
+             php artisan db:seed --force && \
+             php artisan config:cache && \
+             apache2-foreground"
+    restart: unless-stopped
+
+  # ========================
+  # Database (MySQL)
+  # ========================
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: clms_db
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - laravel_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================
+  # phpMyAdmin
+  # ========================
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    depends_on:
+      - db
+    networks:
+      - laravel_network
+    restart: unless-stopped
+
+# ========================
+# Volumes & Networks  
+# ========================
+volumes:
+  dbdata:
+    driver: local
+  vendor:
+    driver: local
+
+networks:
+  laravel_network:
+    driver: bridge
