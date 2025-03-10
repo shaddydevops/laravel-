@@ -102,34 +102,33 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install Docker
-            sudo yum install docker -y
+            # Install Docker (Amazon Linux recommended method)
+            sudo amazon-linux-extras install docker -y
             sudo systemctl start docker
-            sudo usermod -a -G docker ec2-user
-            newgrp docker
             sudo systemctl enable docker
+            sudo usermod -aG docker ec2-user
 
-            # Install Git (recommended)
+            # Install Git (optional)
             sudo yum install -y git
 
-            # Install Docker Compose (latest version)
-            sudo wget https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -O /usr/local/bin/docker-compose
+            # Install latest Docker Compose v2.x (official method)
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+              -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
 
-            # Verify Docker Compose installation
-            docker-compose version
+            # Verify installations
+            docker --version
+            docker-compose --version
 
             # Deploy application with IPv4 support
-            mkdir -p ~/app
-            cd ~/app
+            mkdir -p ~/app && cd ~/app
 
-            # Verify docker-compose.yml exists and permissions
-            ls -l
+            # Ensure your docker-compose.yml file is present here.
+            # For example, you can clone it from a repository or copy it from S3.
 
-            # Verify environment and docker access
-            export PATH=$PATH:/usr/local/bin:/usr/bin
-            docker compose version
+            # Pull latest images and start containers
+            docker-compose pull
+            docker-compose up -d
 
-            # Attempt to start the application and capture logs
-            docker compose up -d --enable-ipv4
-            docker compose logs --tail="100"
+            # Check logs for debugging purposes (optional)
+            docker-compose logs --tail="100"
