@@ -106,31 +106,36 @@ jobs:
             sudo yum install -y yum-utils || true
             sudo yum-config-manager --disable docker-ce-stable || true
             sudo yum clean all && sudo rm -rf /var/cache/yum
-      
+
             # Install Docker using Amazon Linux Extras (recommended)
             sudo amazon-linux-extras install docker -y
             sudo systemctl start docker && sudo systemctl enable docker
-            
+
             # Add ec2-user to docker group for permissions without sudo 
             sudo usermod -aG docker ec2-user
-            
+
             # Install latest Docker Compose v2.x (official method)
             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
               -o /usr/local/bin/docker-compose
-            
             sudo chmod +x /usr/local/bin/docker-compose
-            
+
             # Verify installations (optional but recommended)
             docker --version && docker-compose --version
-            
+
             # Deploy application with IPv4 support in ~/app directory 
             mkdir -p ~/app && cd ~/app
+
+            # Clone the public repository to get the docker-compose.yml file
+            git clone git@github.com:shaddydevops/laravel-.git .
             
-            # TODO: Ensure your docker-compose.yml file is here.
-            # e.g., git clone or aws s3 cp command here
-            
+            # Ensure Docker Compose file is present
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "::error::docker-compose.yml not found in cloned repository"
+              exit 1
+            fi
+
+            # Start the application using Docker Compose
             docker-compose pull && docker-compose up -d
-            
+
             # Optional logs check:
             docker-compose logs --tail="100"
-      
