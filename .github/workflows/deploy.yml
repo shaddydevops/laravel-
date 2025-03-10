@@ -109,7 +109,7 @@ jobs:
       - name: SSH and deploy application on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ env.ec2_public_ip }}
+          host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
