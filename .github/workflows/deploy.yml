@@ -111,7 +111,7 @@ jobs:
             sudo amazon-linux-extras install docker -y
             sudo systemctl start docker && sudo systemctl enable docker
 
-            # Add ec2-user to docker group for permissions without sudo 
+            # Add ec2-user to the docker group for permissions without sudo 
             sudo usermod -aG docker ec2-user
 
             # Install latest Docker Compose v2.x (official method)
@@ -125,9 +125,9 @@ jobs:
             # Deploy application with IPv4 support in ~/app directory 
             mkdir -p ~/app && cd ~/app
 
-            # Clone the public repository to get the docker-compose.yml file
-            git clone git@github.com:shaddydevops/laravel-.git .
-            
+            # Clone the repository to get the docker-compose.yml file
+            git clone https://github.com/shaddydevops/laravel-.git .
+
             # Ensure Docker Compose file is present
             if [ ! -f "docker-compose.yml" ]; then
               echo "::error::docker-compose.yml not found in cloned repository"
