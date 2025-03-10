@@ -31,42 +31,20 @@ jobs:
       - name: Initialize Terraform
         run: terraform init
         working-directory: infrastructure
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan -var="ami_id=${{ secrets.AWS_AMI_ID }}" -var="key_name=${{ secrets.EC2_SSH_PRIVATE_KEY_NAME }}"
         working-directory: infrastructure
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
 
       - name: Apply Terraform
         run: terraform apply -auto-approve tfplan
         working-directory: infrastructure
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
 
       - name: Capture EC2 Public IP
         id: get-ip
         run: |
-          IP=$(terraform output -no-color ec2_public_ip | grep -oE -m1 '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1 | awk '{print $1}' | tr -d '\n')
-          if [[ "$IP" ]]; then
-            echo "ec2_public_ip=$IP" >> $GITHUB_OUTPUT
-          else
-            echo "::error::No IP found"
-            exit 1
-          fi
-        working-directory: infrastructure
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
+          IP=$(terraform output -raw ec2_public_ip)
+          echo "ec2_public_ip=$IP" >> $GITHUB_ENV
 
   build-and-push:
     needs: terraform
@@ -81,68 +59,97 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build and push frontend
+      - name: Build and push frontend image
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest ./frontend
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend ./frontend
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend
 
-      - name: Build and push backend
+      - name: Build and push backend image
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest ./backend
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend ./backend
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend
 
   deploy:
     needs: [terraform, build-and-push]
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS Credentials for Deployment Server Access
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Retrieve Backend Secrets from AWS Secrets Manager
+        uses: abhilash1in/aws-secrets-manager-action@v2.1.0
+        id: get-backend-secrets
+        with:
+          secrets: BackendSecrets
+          parse-json-secrets: true
+
+      - name: Retrieve Frontend Secrets from AWS Secrets Manager
+        uses: abhilash1in/aws-secrets-manager-action@v2.1.0
+        id: get-frontend-secrets
+        with:
+          secrets: FrontendSecrets
+          parse-json-secrets: true
+
       - name: SSH and deploy application on EC2 (Amazon Linux 2)
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ needs.terraform.outputs.ec2_public_ip }}
+          host: ${{ env.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Disable incorrect Docker CE repo if exists and clean cache
-            sudo yum install -y yum-utils || true
-            sudo yum-config-manager --disable docker-ce-stable || true
-            sudo yum clean all && sudo rm -rf /var/cache/yum
+            # Install dependencies
+            sudo amazon-linux-extras enable docker
+            sudo yum install docker git jq aws-cli -y
+            sudo systemctl start docker
+            sudo systemctl enable docker
 
-            # Install Docker using Amazon Linux Extras (recommended)
-            sudo amazon-linux-extras install docker -y
-            sudo systemctl start docker && sudo systemctl enable docker
-
-            # Add ec2-user to the docker group for permissions without sudo 
-            sudo usermod -aG docker ec2-user
-
-            # Install latest Docker Compose v2.x (official method)
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              -o /usr/local/bin/docker-compose
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
 
-            # Install Git (required for cloning repositories)
-            sudo yum install -y git
-
-            # Verify installations (optional but recommended)
+            # Verify installations
             docker --version && docker-compose --version && git --version
 
-            # Deploy application with IPv4 support in ~/app directory 
+            # Set up application directory
             mkdir -p ~/app && cd ~/app
 
-            # Clone the repository to get the docker-compose.yml file
-            git clone https://github.com/shaddydevops/laravel-.git .
+            git clone https://github.com/shaddydevops/laravel-.git . || echo "Repo already cloned"
 
-            # List contents of the cloned repository for inspection
-            echo "Listing contents of ~/app directory:"
-            ls -al
+            # Create Backend .env file dynamically
+            cat <<EOF > ./backend/.env
+            APP_NAME=${{ steps.get-backend-secrets.outputs.APP_NAME }}
+            APP_ENV=${{ steps.get-backend-secrets.outputs.APP_ENV }}
+            APP_KEY=${{ steps.get-backend-secrets.outputs.APP_KEY }}
+            APP_DEBUG=${{ steps.get-backend-secrets.outputs.APP_DEBUG }}
+            DB_CONNECTION=${{ steps.get-backend-secrets.outputs.DB_CONNECTION }}
+            DB_HOST=${{ steps.get-backend-secrets.outputs.DB_HOST }}
+            DB_PORT=${{ steps.get-backend-secrets.outputs.DB_PORT }}
+            DB_DATABASE=${{ steps.get-backend-secrets.outputs.DB_DATABASE }}
+            DB_USERNAME=${{ steps.get-backend-secrets.outputs.DB_USERNAME }}
+            DB_PASSWORD=${{ steps.get-backend-secrets.outputs.DB_PASSWORD }}
+            EOF
 
-            # Ensure Docker Compose file is present
+            # Create Frontend .env file dynamically
+            cat <<EOF > ./frontend/.env
+            APP_NAME=${{ steps.get-frontend-secrets.outputs.APP_NAME }}
+            BACKEND_API_HOST=${{ steps.get-frontend-secrets.outputs.BACKEND_API_HOST }}
+            SECRET_COOKIE_PASSWORD=${{ steps.get-frontend-secrets.outputs.SECRET_COOKIE_PASSWORD }}
+            TINY_MCE_API_KEY=${{ steps.get-frontend-secrets.outputs.TINY_MCE_API_KEY }}
+            REACT_APP_API_URL=${{ steps.get-frontend-secrets.outputs.REACT_APP_API_URL }}
+            REACT_APP_API_URL_DOCKER=${{ steps.get-frontend-secrets.outputs.REACT_APP_API_URL_DOCKER }}
+            NEXT_PUBLIC_API_URL=${{ steps.get-frontend-secrets.outputs.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_URL_LOCAL=${{ steps.get-frontend-secrets.outputs.NEXT_PUBLIC_API_URL_LOCAL }}
+            EOF
+
+            # Ensure docker-compose.yml exists
             if [ ! -f "docker-compose.yml" ]; then
-              echo "::error::docker-compose.yml not found in cloned repository"
+              echo "::error::docker-compose.yml not found in ~/app directory"
               exit 1
             fi
 
-            # Start the application using Docker Compose
+            # Deploy using Docker Compose
             docker-compose pull && docker-compose up -d
-
-            # Optional logs check:
             docker-compose logs --tail="100"

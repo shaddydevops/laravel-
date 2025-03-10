@@ -1,0 +1,148 @@
+# name: CI/CD Pipeline
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   terraform:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       ec2_public_ip: ${{ steps.get-ip.outputs.ec2_public_ip }}
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v2
+#         with:
+#           terraform_version: latest
+
+#       - name: Test AWS CLI Access
+#         run: |
+#           aws sts get-caller-identity
+#           aws s3 ls s3://shadrack-terraform-state-bucket || echo "Bucket listing failed"
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: us-east-1
+
+#       - name: Initialize Terraform
+#         run: terraform init
+#         working-directory: infrastructure
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: us-east-1
+
+#       - name: Terraform Plan
+#         run: terraform plan -out=tfplan -var="ami_id=${{ secrets.AWS_AMI_ID }}" -var="key_name=${{ secrets.EC2_SSH_PRIVATE_KEY_NAME }}"
+#         working-directory: infrastructure
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: us-east-1
+
+#       - name: Apply Terraform
+#         run: terraform apply -auto-approve tfplan
+#         working-directory: infrastructure
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: us-east-1
+
+#       - name: Capture EC2 Public IP
+#         id: get-ip
+#         run: |
+#           IP=$(terraform output -no-color ec2_public_ip | grep -oE -m1 '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1 | awk '{print $1}' | tr -d '\n')
+#           if [[ "$IP" ]]; then
+#             echo "ec2_public_ip=$IP" >> $GITHUB_OUTPUT
+#           else
+#             echo "::error::No IP found"
+#             exit 1
+#           fi
+#         working-directory: infrastructure
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           AWS_REGION: us-east-1
+
+#   build-and-push:
+#     needs: terraform
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKER_HUB_USERNAME }}
+#           password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+#       - name: Build and push frontend
+#         run: |
+#           docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest ./frontend
+#           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+
+#       - name: Build and push backend
+#         run: |
+#           docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest ./backend
+#           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+
+#   deploy:
+#     needs: [terraform, build-and-push]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: SSH and deploy application on EC2 (Amazon Linux 2)
+#         uses: appleboy/ssh-action@v0.1.7
+#         with:
+#           host: ${{ needs.terraform.outputs.ec2_public_ip }}
+#           username: ec2-user
+#           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+#           script: |
+#             # Disable incorrect Docker CE repo if exists and clean cache
+#             sudo yum install -y yum-utils || true
+#             sudo yum-config-manager --disable docker-ce-stable || true
+#             sudo yum clean all && sudo rm -rf /var/cache/yum
+
+#             # Install Docker using Amazon Linux Extras (recommended)
+#             sudo amazon-linux-extras install docker -y
+#             sudo systemctl start docker && sudo systemctl enable docker
+
+#             # Add ec2-user to the docker group for permissions without sudo 
+#             sudo usermod -aG docker ec2-user
+
+#             # Install latest Docker Compose v2.x (official method)
+#             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+#               -o /usr/local/bin/docker-compose
+#             sudo chmod +x /usr/local/bin/docker-compose
+
+#             # Install Git (required for cloning repositories)
+#             sudo yum install -y git
+
+#             # Verify installations (optional but recommended)
+#             docker --version && docker-compose --version && git --version
+
+#             # Deploy application with IPv4 support in ~/app directory 
+#             mkdir -p ~/app && cd ~/app
+
+#             # Clone the repository to get the docker-compose.yml file
+#             git clone https://github.com/shaddydevops/laravel-.git .
+
+#             # List contents of the cloned repository for inspection
+#             echo "Listing contents of ~/app directory:"
+#             ls -al
+
+#             # Ensure Docker Compose file is present
+#             if [ ! -f "docker-compose.yml" ]; then
+#               echo "::error::docker-compose.yml not found in cloned repository"
+#               exit 1
+#             fi
+
+#             # Start the application using Docker Compose
+#             docker-compose pull && docker-compose up -d
+
+#             # Optional logs check:
+#             docker-compose logs --tail="100"
