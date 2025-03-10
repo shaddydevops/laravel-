@@ -97,14 +97,14 @@ jobs:
         uses: abhilash1in/aws-secrets-manager-action@v2.1.0
         with:
           secrets: BackendSecrets
-          parse-json-secrets: true
+          parse-json: true
 
       - name: Retrieve Frontend Secrets
         id: get-frontend-secrets
         uses: abhilash1in/aws-secrets-manager-action@v2.1.0
         with:
           secrets: FrontendSecrets
-          parse-json-secrets: true
+          parse-json: true
 
       - name: SSH and deploy application on EC2
         uses: appleboy/ssh-action@v0.1.7
