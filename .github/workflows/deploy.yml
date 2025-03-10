@@ -60,6 +60,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
 
+      - name: Debug Terraform Outputs
+        run: terraform output
+        working-directory: infrastructure
+
       - name: Capture EC2 Public IP
         id: get-ip
         run: |
