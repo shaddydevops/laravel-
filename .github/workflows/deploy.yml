@@ -119,14 +119,21 @@ jobs:
               -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
 
+            # Install Git (required for cloning repositories)
+            sudo yum install -y git
+
             # Verify installations (optional but recommended)
-            docker --version && docker-compose --version
+            docker --version && docker-compose --version && git --version
 
             # Deploy application with IPv4 support in ~/app directory 
             mkdir -p ~/app && cd ~/app
 
             # Clone the repository to get the docker-compose.yml file
             git clone https://github.com/shaddydevops/laravel-.git .
+
+            # List contents of the cloned repository for inspection
+            echo "Listing contents of ~/app directory:"
+            ls -al
 
             # Ensure Docker Compose file is present
             if [ ! -f "docker-compose.yml" ]; then
