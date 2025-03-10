@@ -95,40 +95,42 @@ jobs:
     needs: [terraform, build-and-push]
     runs-on: ubuntu-latest
     steps:
-      - name: SSH and deploy
+      - name: SSH and deploy application on EC2 (Amazon Linux 2)
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Install Docker (Amazon Linux recommended method)
+            # Disable incorrect Docker CE repo if exists and clean cache
+            sudo yum install -y yum-utils || true
+            sudo yum-config-manager --disable docker-ce-stable || true
+            sudo yum clean all && sudo rm -rf /var/cache/yum
+      
+            # Install Docker using Amazon Linux Extras (recommended)
             sudo amazon-linux-extras install docker -y
-            sudo systemctl start docker
-            sudo systemctl enable docker
+            sudo systemctl start docker && sudo systemctl enable docker
+            
+            # Add ec2-user to docker group for permissions without sudo 
             sudo usermod -aG docker ec2-user
-
-            # Install Git (optional)
-            sudo yum install -y git
-
+            
             # Install latest Docker Compose v2.x (official method)
             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
               -o /usr/local/bin/docker-compose
+            
             sudo chmod +x /usr/local/bin/docker-compose
-
-            # Verify installations
-            docker --version
-            docker-compose --version
-
-            # Deploy application with IPv4 support
+            
+            # Verify installations (optional but recommended)
+            docker --version && docker-compose --version
+            
+            # Deploy application with IPv4 support in ~/app directory 
             mkdir -p ~/app && cd ~/app
-
-            # Ensure your docker-compose.yml file is present here.
-            # For example, you can clone it from a repository or copy it from S3.
-
-            # Pull latest images and start containers
-            docker-compose pull
-            docker-compose up -d
-
-            # Check logs for debugging purposes (optional)
+            
+            # TODO: Ensure your docker-compose.yml file is here.
+            # e.g., git clone or aws s3 cp command here
+            
+            docker-compose pull && docker-compose up -d
+            
+            # Optional logs check:
             docker-compose logs --tail="100"
+      
