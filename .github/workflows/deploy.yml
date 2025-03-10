@@ -56,6 +56,7 @@ jobs:
         id: get-ip
         run: |
           IP=$(terraform output -no-color ec2_public_ip | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1)
+          echo "Extracted IP: $IP"
           echo "ec2_public_ip=$IP" >> $GITHUB_OUTPUT
 
   build-and-push:
