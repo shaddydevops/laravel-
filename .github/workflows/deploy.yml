@@ -106,6 +106,9 @@ jobs:
           secrets: FrontendSecrets
           parse-json: true
 
+      - name: Print EC2 Public IP
+        run: echo "Received EC2 Public IP - '${{ needs.terraform.outputs.ec2_public_ip }}'"
+
       - name: SSH and deploy application on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -114,6 +117,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
             # Install Docker & Docker Compose
+            echo "Connected to EC2 instance at: $(curl -s ifconfig.me)"
+            hostname -I
             sudo amazon-linux-extras enable docker
             sudo yum install -y docker git jq aws-cli
             sudo systemctl start docker
