@@ -75,7 +75,7 @@ jobs:
           echo "Fetching EC2 Public IP from Terraform..."
 
           # Get raw IP and sanitize output
-          IP=$(terraform output -raw ec2_public_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | tr -d '\r' | tr -d '\n')
+          IP=$(terraform output -raw ec2_public_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1 | tr -d '\r' | tr -d '\n')
 
           echo "Extracted IP: $IP"
 
@@ -95,6 +95,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           echo "Public IP successfully stored in GITHUB_ENV and GITHUB_OUTPUT."
+
 
 
         working-directory: infrastructure
