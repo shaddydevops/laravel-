@@ -142,6 +142,7 @@ jobs:
       - name: Retrieve Backend Secrets Using AWS CLI
         run: |
           echo "Fetching secrets from AWS Secrets Manager..."
+          mkdir -p ./backend  # Ensure the backend directory exists
           SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
           echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
 
@@ -151,6 +152,7 @@ jobs:
       - name: Retrieve Frontend Secrets Using AWS CLI
         run: |
           echo "Fetching frontend secrets from AWS Secrets Manager..."
+          mkdir -p ./frontend  # Ensure the backend directory exists
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
 
