@@ -155,6 +155,7 @@ jobs:
 
       - name: Debug Backend Secrets
         run: |
+          echo "SECREEEEEEEETS: "
           echo "APP_NAME=${{ steps.get-backend-secrets.outputs.APP_NAME }}"
           echo "APP_ENV=${{ steps.get-backend-secrets.outputs.APP_ENV }}"
           echo "DB_HOST=${{ steps.get-backend-secrets.outputs.DB_HOST }}"
