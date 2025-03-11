@@ -153,6 +153,13 @@ jobs:
           secrets: FrontendSecrets
           parse-json: true
 
+      - name: Debug Backend Secrets
+        run: |
+          echo "APP_NAME=${{ steps.get-backend-secrets.outputs.APP_NAME }}"
+          echo "APP_ENV=${{ steps.get-backend-secrets.outputs.APP_ENV }}"
+          echo "DB_HOST=${{ steps.get-backend-secrets.outputs.DB_HOST }}"
+          echo "MYSQL_ROOT_PASSWORD=${{ steps.get-backend-secrets.outputs.MYSQL_ROOT_PASSWORD }}"
+
       - name: Print EC@ Public IP
         run: |
           echo "Received EC2 Public IP - '${{ needs.terraform.outputs.ec2_public_ip }}'"
