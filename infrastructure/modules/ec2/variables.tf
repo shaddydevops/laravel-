@@ -18,3 +18,8 @@ variable "security_group_name" {
   type        = string
   default     = "ec2_security_group"
 }
+
+variable "instance_name" {
+  description = "Name tag for the EC2 instance"
+  type        = string
+}

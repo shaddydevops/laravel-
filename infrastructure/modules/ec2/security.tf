@@ -10,6 +10,14 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]  # Replace with your IP for security!
   }
 
+    ingress {
+    description = "Allow MySQL traffic (optional, restrict as needed)"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]# Restrict access to your IP or VPC CIDR block.
+  }
+
   ingress {
     description = "Allow HTTP"
     from_port   = 80
