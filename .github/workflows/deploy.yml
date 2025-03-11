@@ -197,6 +197,7 @@ jobs:
             DB_DATABASE=${{ steps.get-backend-secrets.outputs.DB_DATABASE }}
             DB_USERNAME=${{ steps.get-backend-secrets.outputs.DB_USERNAME }}
             DB_PASSWORD=${{ steps.get-backend-secrets.outputs.DB_PASSWORD }}
+            MYSQL_ROOT_PASSWORD=${{ steps.get-backend-secrets.outputs.MYSQL_ROOT_PASSWORD }}
             EOF
 
             # Ensure .env files exist for Frontend
