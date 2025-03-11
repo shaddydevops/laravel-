@@ -27,7 +27,8 @@ resource "aws_iam_policy" "secrets_manager_policy" {
       "Effect": "Allow",
       "Action": [
         "secretsmanager:GetSecretValue",
-        "secretsmanager:DescribeSecret"
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecret"
       ],
       "Resource": "*"
     }

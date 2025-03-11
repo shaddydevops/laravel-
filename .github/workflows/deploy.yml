@@ -139,27 +139,34 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Retrieve Backend Secrets
-        id: get-backend-secrets
-        uses: abhilash1in/aws-secrets-manager-action@v2.1.0
-        with:
-          secrets: BackendSecrets
-          parse-json: true
-
-      - name: Retrieve Frontend Secrets
-        id: get-frontend-secrets
-        uses: abhilash1in/aws-secrets-manager-action@v2.1.0
-        with:
-          secrets: FrontendSecrets
-          parse-json: true
-
-      - name: Debug Backend Secrets
+      - name: Retrieve Backend Secrets Using AWS CLI
         run: |
-          echo "SECREEEEEEEETS: "
-          echo "APP_NAME=${{ steps.get-backend-secrets.outputs.APP_NAME }}"
-          echo "APP_ENV=${{ steps.get-backend-secrets.outputs.APP_ENV }}"
-          echo "DB_HOST=${{ steps.get-backend-secrets.outputs.DB_HOST }}"
-          echo "MYSQL_ROOT_PASSWORD=${{ steps.get-backend-secrets.outputs.MYSQL_ROOT_PASSWORD }}"
+          echo "Fetching secrets from AWS Secrets Manager..."
+          SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
+          echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
+
+          echo "Generated backend .env file:"
+          cat ./backend/.env
+
+      - name: Retrieve Frontend Secrets Using AWS CLI
+        run: |
+          echo "Fetching frontend secrets from AWS Secrets Manager..."
+          FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
+          echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
+
+          echo "Generated frontend .env file:"
+          cat ./frontend/.env
+
+
+      - name: Debug Frontend Secrets Retrieval
+        run: |
+          echo "Raw JSON from Secrets Manager:"
+          aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text
+
+          echo "Generated frontend .env file:"
+          cat ./frontend/.env || echo "::error:: Frontend .env file not found or empty."
+
+
 
       - name: Print EC@ Public IP
         run: |
