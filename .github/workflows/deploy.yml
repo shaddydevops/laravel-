@@ -245,8 +245,31 @@ jobs:
             echo "Testing DB_DATABASE value: $DB_DATABASE"
             echo "Testing MYSQL_ROOT_PASSWORD value: $MYSQL_ROOT_PASSWORD"
             
-            # Continue with deployment...
+            # Start deployment with extra MySQL debugging
             echo "=== Starting Deployment ==="
             docker-compose down || true
             docker-compose pull
-            docker-compose up -d
+            
+            # Start MySQL container first and debug
+            echo "=== Starting MySQL Container Separately ==="
+            docker-compose up -d mysql_db
+            echo "Waiting for MySQL to initialize..."
+            sleep 10
+            
+            echo "=== MySQL Container Logs ==="
+            docker-compose logs mysql_db
+            
+            echo "=== MySQL Container Status ==="
+            docker inspect mysql_db --format='{{.State.Status}}'
+            docker inspect mysql_db --format='{{.State.Health.Status}}'
+            
+            # If MySQL is healthy, start other containers
+            if [ "$(docker inspect mysql_db --format='{{.State.Health.Status}}')" = "healthy" ]; then
+              echo "MySQL is healthy, starting other containers..."
+              docker-compose up -d
+            else
+              echo "ERROR: MySQL container is unhealthy"
+              echo "=== Detailed MySQL Logs ==="
+              docker-compose logs mysql_db
+              exit 1
+            fi
