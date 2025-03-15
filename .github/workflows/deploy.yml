@@ -146,6 +146,14 @@ jobs:
           SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
           echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
 
+          echo "Generated backend .env file:"
+          cat ./backend/.env || echo "::error:: Backend .env file not found or empty."
+
+      - name: Debug Backend Secrets
+        run: |
+          echo "Raw JSON from Secrets Manager (Backend):"
+          aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text
+
       - name: Retrieve Frontend Secrets Using AWS CLI
         run: |
           echo "Fetching frontend secrets from AWS Secrets Manager..."
@@ -153,13 +161,13 @@ jobs:
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
 
-      - name: Debug Frontend Secrets Retrieval
-        run: |
-          echo "Raw JSON from Secrets Manager:"
-          aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text
-
           echo "Generated frontend .env file:"
           cat ./frontend/.env || echo "::error:: Frontend .env file not found or empty."
+
+      - name: Debug Frontend Secrets
+        run: |
+          echo "Raw JSON from Secrets Manager (Frontend):"
+          aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text
 
       - name: Print EC@ Public IP
         run: |
@@ -179,6 +187,18 @@ jobs:
           echo "FRONTEND_ENV<<EOF" >> $GITHUB_ENV
           echo "$FRONTEND_ENV" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+
+      - name: Debug Environment Files Preparation
+        run: |
+          echo "=== Checking Environment Variables ==="
+          echo "Backend .env contents:"
+          cat ./backend/.env || echo "Backend .env file not found"
+          
+          echo -e "\nFrontend .env contents:"
+          cat ./frontend/.env || echo "Frontend .env file not found"
+          
+          echo -e "\nVerifying GITHUB_ENV contents:"
+          cat $GITHUB_ENV || echo "GITHUB_ENV not accessible"
 
       - name: SSH and deploy application on EC2
         uses: appleboy/ssh-action@v0.1.7
