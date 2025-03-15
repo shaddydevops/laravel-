@@ -185,58 +185,72 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
+            # Debug information
+            echo "=== Debug Information ==="
+            echo "Current user: $(whoami)"
+            echo "Current directory: $(pwd)"
+            echo "EC2 IP Address: $(curl -s ifconfig.me)"
+            echo "System info: $(uname -a)"
+            
+            # Test Docker access
+            echo "=== Docker Status ==="
+            sudo systemctl status docker || true
+            docker --version || true
+            
             # Install Docker & Docker Compose
-            echo "Connected to EC2 instance at: $(curl -s ifconfig.me)"
-            hostname -I
+            echo "=== Installing Dependencies ==="
             sudo amazon-linux-extras enable docker
             sudo yum install -y docker git jq aws-cli
             sudo systemctl start docker
             sudo systemctl enable docker
             sudo usermod -aG docker ec2-user
-
+            
+            # Install Docker Compose
+            echo "=== Installing Docker Compose ==="
             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
               -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
+            docker-compose --version || true
 
-            # Clone the repository
-            mkdir -p ~/app && cd ~/app
-            git clone https://github.com/shaddydevops/laravel-.git .
-
-            # Ensure .env files exist for Backend
-            cat <<EOF > ./backend/.env
-            APP_NAME=${{ steps.get-backend-secrets.outputs.APP_NAME }}
-            APP_ENV=${{ steps.get-backend-secrets.outputs.APP_ENV }}
-            APP_KEY=${{ steps.get-backend-secrets.outputs.APP_KEY }}
-            APP_DEBUG=${{ steps.get-backend-secrets.outputs.APP_DEBUG }}
-            DB_CONNECTION=${{ steps.get-backend-secrets.outputs.DB_CONNECTION }}
-            DB_HOST=${{ steps.get-backend-secrets.outputs.DB_HOST }}
-            DB_PORT=${{ steps.get-backend-secrets.outputs.DB_PORT }}
-            DB_DATABASE=${{ steps.get-backend-secrets.outputs.DB_DATABASE }}
-            DB_USERNAME=${{ steps.get-backend-secrets.outputs.DB_USERNAME }}
-            DB_PASSWORD=${{ steps.get-backend-secrets.outputs.DB_PASSWORD }}
-            MYSQL_ROOT_PASSWORD=${{ steps.get-backend-secrets.outputs.MYSQL_ROOT_PASSWORD }}
-            EOF
-
-            # Ensure .env files exist for Frontend
-            cat <<EOF > ./frontend/.env
-            APP_NAME=${{ steps.get-frontend-secrets.outputs.APP_NAME }}
-            BACKEND_API_HOST=${{ steps.get-frontend-secrets.outputs.BACKEND_API_HOST }}
-            SECRET_COOKIE_PASSWORD=${{ steps.get-frontend-secrets.outputs.SECRET_COOKIE_PASSWORD }}
-            TINY_MCE_API_KEY=${{ steps.get-frontend-secrets.outputs.TINY_MCE_API_KEY }}
-            REACT_APP_API_URL=${{ steps.get-frontend-secrets.outputs.REACT_APP_API_URL }}
-            REACT_APP_API_URL_DOCKER=${{ steps.get-frontend-secrets.outputs.REACT_APP_API_URL_DOCKER }}
-            NEXT_PUBLIC_API_URL=${{ steps.get-frontend-secrets.outputs.NEXT_PUBLIC_API_URL }}
-            NEXT_PUBLIC_API_URL_LOCAL=${{ steps.get-frontend-secrets.outputs.NEXT_PUBLIC_API_URL_LOCAL }}
-            EOF
-
-            # Check if docker-compose.yml exists
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "::error::docker-compose.yml not found in ~/app directory"
+            # Clone and setup application
+            echo "=== Setting up Application ==="
+            mkdir -p ~/app
+            cd ~/app
+            ls -la
+            
+            # Clone repository
+            if [ -d ".git" ]; then
+              echo "Git repository exists, pulling latest changes"
+              git pull
+            else
+              echo "Cloning fresh repository"
+              git clone https://github.com/shaddydevops/laravel-.git .
+            fi
+            
+            # Verify environment files
+            echo "=== Checking Environment Files ==="
+            ls -la ./backend/.env || echo "Backend .env not found"
+            ls -la ./frontend/.env || echo "Frontend .env not found"
+            
+            # Check docker-compose file
+            echo "=== Checking Docker Compose File ==="
+            if [ -f "docker-compose.yml" ]; then
+              echo "docker-compose.yml exists"
+              cat docker-compose.yml
+            else
+              echo "ERROR: docker-compose.yml not found"
               exit 1
             fi
-
-            # Deploy using Docker Compose
-            docker-compose pull && docker-compose up -d
-
-            # Optional: Check logs
-            docker-compose logs --tail="100"
+            
+            # Deploy application
+            echo "=== Deploying Application ==="
+            docker-compose pull
+            docker-compose up -d
+            
+            # Show running containers
+            echo "=== Running Containers ==="
+            docker ps
+            
+            # Show logs
+            echo "=== Container Logs ==="
+            docker-compose logs --tail=50
