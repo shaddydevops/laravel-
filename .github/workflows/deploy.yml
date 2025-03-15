@@ -142,8 +142,17 @@ jobs:
       - name: Retrieve Backend Secrets Using AWS CLI
         run: |
           # This runs in GitHub Actions runner
+          echo "Creating directories..."
+          mkdir -p ./backend
+          
+          echo "Fetching backend secrets..."
           SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
+          
+          echo "Writing backend .env file..."
           echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
+          
+          echo "Verifying backend .env creation:"
+          ls -la ./backend/.env
 
       - name: Debug Backend Secrets
         run: |
@@ -153,13 +162,17 @@ jobs:
       - name: Retrieve Frontend Secrets Using AWS CLI
         run: |
           # This also runs in GitHub Actions runner
+          echo "Creating directories..."
+          mkdir -p ./frontend
+          
+          echo "Fetching frontend secrets..."
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
+          
+          echo "Writing frontend .env file..."
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
-
-      - name: Debug Frontend Secrets
-        run: |
-          echo "Raw JSON from Secrets Manager (Frontend):"
-          aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text
+          
+          echo "Verifying frontend .env creation:"
+          ls -la ./frontend/.env
 
       - name: Print EC@ Public IP
         run: |
