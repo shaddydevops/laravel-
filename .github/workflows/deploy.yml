@@ -142,23 +142,16 @@ jobs:
       - name: Retrieve Backend Secrets Using AWS CLI
         run: |
           echo "Fetching secrets from AWS Secrets Manager..."
-          mkdir -p ./backend  # Ensure the backend directory exists
+          mkdir -p ./backend
           SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
           echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
-
-          echo "Generated backend .env file:"
-          cat ./backend/.env
 
       - name: Retrieve Frontend Secrets Using AWS CLI
         run: |
           echo "Fetching frontend secrets from AWS Secrets Manager..."
-          mkdir -p ./frontend  # Ensure the backend directory exists
+          mkdir -p ./frontend
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
-
-          echo "Generated frontend .env file:"
-          cat ./frontend/.env
-
 
       - name: Debug Frontend Secrets Retrieval
         run: |
@@ -168,8 +161,6 @@ jobs:
           echo "Generated frontend .env file:"
           cat ./frontend/.env || echo "::error:: Frontend .env file not found or empty."
 
-
-
       - name: Print EC@ Public IP
         run: |
           echo "Received EC2 Public IP - '${{ needs.terraform.outputs.ec2_public_ip }}'"
@@ -178,79 +169,47 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare Environment Files
+        run: |
+          BACKEND_ENV=$(cat ./backend/.env)
+          FRONTEND_ENV=$(cat ./frontend/.env)
+          echo "BACKEND_ENV<<EOF" >> $GITHUB_ENV
+          echo "$BACKEND_ENV" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "FRONTEND_ENV<<EOF" >> $GITHUB_ENV
+          echo "$FRONTEND_ENV" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: SSH and deploy application on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          envs: BACKEND_ENV,FRONTEND_ENV
           script: |
-            # Debug information
-            echo "=== Debug Information ==="
-            echo "Current user: $(whoami)"
-            echo "Current directory: $(pwd)"
-            echo "EC2 IP Address: $(curl -s ifconfig.me)"
-            echo "System info: $(uname -a)"
-            
-            # Test Docker access
-            echo "=== Docker Status ==="
-            sudo systemctl status docker || true
-            docker --version || true
-            
-            # Install Docker & Docker Compose
-            echo "=== Installing Dependencies ==="
-            sudo amazon-linux-extras enable docker
-            sudo yum install -y docker git jq aws-cli
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker ec2-user
-            
-            # Install Docker Compose
-            echo "=== Installing Docker Compose ==="
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-            docker-compose --version || true
-
-            # Clone and setup application
-            echo "=== Setting up Application ==="
+            # Setup application directory
             mkdir -p ~/app
             cd ~/app
-            ls -la
             
-            # Clone repository
-            if [ -d ".git" ]; then
-              echo "Git repository exists, pulling latest changes"
-              git pull
-            else
-              echo "Cloning fresh repository"
-              git clone https://github.com/shaddydevops/laravel-.git .
-            fi
+            # Create backend .env file
+            echo "$BACKEND_ENV" > ./backend/.env
             
-            # Verify environment files
-            echo "=== Checking Environment Files ==="
-            ls -la ./backend/.env || echo "Backend .env not found"
-            ls -la ./frontend/.env || echo "Frontend .env not found"
+            # Create frontend .env file
+            echo "$FRONTEND_ENV" > ./frontend/.env
             
-            # Check docker-compose file
-            echo "=== Checking Docker Compose File ==="
-            if [ -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml exists"
-              cat docker-compose.yml
-            else
-              echo "ERROR: docker-compose.yml not found"
-              exit 1
-            fi
-            
-            # Deploy application
-            echo "=== Deploying Application ==="
+            # Deploy using Docker Compose
+            echo "Starting deployment..."
+            docker-compose down || true
             docker-compose pull
+            
+            # Export environment variables for Docker Compose
+            export $(cat ./backend/.env | xargs)
+            
+            # Start containers
             docker-compose up -d
             
-            # Show running containers
-            echo "=== Running Containers ==="
-            docker ps
-            
-            # Show logs
-            echo "=== Container Logs ==="
+            # Wait and check status
+            sleep 30
+            docker-compose ps
             docker-compose logs --tail=50
