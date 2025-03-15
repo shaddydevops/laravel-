@@ -141,13 +141,9 @@ jobs:
 
       - name: Retrieve Backend Secrets Using AWS CLI
         run: |
-          echo "Fetching secrets from AWS Secrets Manager..."
-          mkdir -p ./backend
+          # This runs in GitHub Actions runner
           SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --region us-east-1 --query SecretString --output text)
           echo "$SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./backend/.env
-
-          echo "Generated backend .env file:"
-          cat ./backend/.env || echo "::error:: Backend .env file not found or empty."
 
       - name: Debug Backend Secrets
         run: |
@@ -156,13 +152,9 @@ jobs:
 
       - name: Retrieve Frontend Secrets Using AWS CLI
         run: |
-          echo "Fetching frontend secrets from AWS Secrets Manager..."
-          mkdir -p ./frontend
+          # This also runs in GitHub Actions runner
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --region us-east-1 --query SecretString --output text)
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' > ./frontend/.env
-
-          echo "Generated frontend .env file:"
-          cat ./frontend/.env || echo "::error:: Frontend .env file not found or empty."
 
       - name: Debug Frontend Secrets
         run: |
@@ -179,6 +171,7 @@ jobs:
 
       - name: Prepare Environment Files
         run: |
+          # This prepares the variables to be sent to EC2
           BACKEND_ENV=$(cat ./backend/.env)
           FRONTEND_ENV=$(cat ./frontend/.env)
           echo "BACKEND_ENV<<EOF" >> $GITHUB_ENV
@@ -191,11 +184,17 @@ jobs:
       - name: Debug Environment Files Preparation
         run: |
           echo "=== Checking Environment Variables ==="
+          
           echo "Backend .env contents:"
           cat ./backend/.env || echo "Backend .env file not found"
           
-          echo -e "\nFrontend .env contents:"
+          echo -e "\nFrontend .env contents (with URL check):"
           cat ./frontend/.env || echo "Frontend .env file not found"
+          
+          echo -e "\nChecking URL configurations:"
+          echo "BACKEND_API_HOST: $(grep BACKEND_API_HOST ./frontend/.env)"
+          echo "REACT_APP_API_URL: $(grep REACT_APP_API_URL ./frontend/.env)"
+          echo "NEXT_PUBLIC_API_URL: $(grep NEXT_PUBLIC_API_URL= ./frontend/.env)"
           
           echo -e "\nVerifying GITHUB_ENV contents:"
           cat $GITHUB_ENV || echo "GITHUB_ENV not accessible"
@@ -208,28 +207,33 @@ jobs:
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           envs: BACKEND_ENV,FRONTEND_ENV
           script: |
-            # Setup application directory
-            mkdir -p ~/app
+            # This runs inside EC2
+            echo "=== Debug: Environment Files Reception ==="
+            
+            # Setup directory
+            mkdir -p ~/app/backend ~/app/frontend
             cd ~/app
             
-            # Create backend .env file
+            # Create and verify backend .env
             echo "$BACKEND_ENV" > ./backend/.env
+            echo "Backend .env file contents:"
+            cat ./backend/.env || echo "ERROR: Backend .env is empty or missing"
+            echo "Backend .env file size: $(wc -l ./backend/.env | awk '{print $1}') lines"
             
-            # Create frontend .env file
+            # Create and verify frontend .env
             echo "$FRONTEND_ENV" > ./frontend/.env
+            echo "Frontend .env file contents:"
+            cat ./frontend/.env || echo "ERROR: Frontend .env is empty or missing"
+            echo "Frontend .env file size: $(wc -l ./frontend/.env | awk '{print $1}') lines"
             
-            # Deploy using Docker Compose
-            echo "Starting deployment..."
+            # Verify environment variables are accessible to Docker
+            echo "=== Debug: Docker Environment ==="
+            export $(cat ./backend/.env | xargs)
+            echo "Testing DB_DATABASE value: $DB_DATABASE"
+            echo "Testing MYSQL_ROOT_PASSWORD value: $MYSQL_ROOT_PASSWORD"
+            
+            # Continue with deployment...
+            echo "=== Starting Deployment ==="
             docker-compose down || true
             docker-compose pull
-            
-            # Export environment variables for Docker Compose
-            export $(cat ./backend/.env | xargs)
-            
-            # Start containers
             docker-compose up -d
-            
-            # Wait and check status
-            sleep 30
-            docker-compose ps
-            docker-compose logs --tail=50
