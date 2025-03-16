@@ -248,13 +248,18 @@ jobs:
             # Create a temporary env file for docker-compose with corrected MySQL settings
             echo "Creating temporary env file for docker-compose..."
             cat > .env << EOL
+            # Database connection for Laravel
+            DB_HOST=db
+            DB_PORT=3306
             DB_DATABASE=clms_db
             DB_USERNAME=clms_user
-            DB_PASSWORD=root
-            MYSQL_ROOT_PASSWORD=root
+            DB_PASSWORD=clmspass
+
+            # MySQL container configuration
+            MYSQL_ROOT_PASSWORD=rootpass
             MYSQL_DATABASE=clms_db
             MYSQL_USER=clms_user
-            MYSQL_PASSWORD=root
+            MYSQL_PASSWORD=clmspass
             EOL
             
             echo "=== Verifying .env file contents ==="
