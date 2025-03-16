@@ -245,21 +245,21 @@ jobs:
             echo "DB_PASSWORD: $DB_PASSWORD"
             echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
             
-            # Create a temporary env file for docker-compose using AWS secrets
+            # Create a temporary env file for docker-compose
             echo "Creating temporary env file for docker-compose..."
             cat > .env << EOL
-            # Database connection for Laravel (using AWS secrets)
+            # Database connection for Laravel
             DB_HOST=db
             DB_PORT=3306
-            DB_DATABASE=${DB_DATABASE}
+            DB_DATABASE=clms_db
             DB_USERNAME=clms_user
-            DB_PASSWORD=${DB_PASSWORD}
+            DB_PASSWORD=clmspass123
 
-            # MySQL container configuration (using AWS secrets with fixed user)
-            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-            MYSQL_DATABASE=${DB_DATABASE}
+            # MySQL container configuration
+            MYSQL_ROOT_PASSWORD=rootpass123
+            MYSQL_DATABASE=clms_db
             MYSQL_USER=clms_user
-            MYSQL_PASSWORD=clmspass123  # Using a different password for the regular user
+            MYSQL_PASSWORD=clmspass123
             EOL
             
             echo "=== Verifying .env file contents ==="
