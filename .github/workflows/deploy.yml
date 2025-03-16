@@ -245,22 +245,24 @@ jobs:
             echo "DB_PASSWORD: $DB_PASSWORD"
             echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
             
-            # Start deployment
-            echo "=== Starting Deployment ==="
-            docker-compose down || true
-            docker-compose pull
-            
-            # Create a temporary env file for docker-compose
+            # Create a temporary env file for docker-compose with corrected MySQL settings
             echo "Creating temporary env file for docker-compose..."
             cat > .env << EOL
-            DB_DATABASE=$DB_DATABASE
-            DB_USERNAME=$DB_USERNAME
-            DB_PASSWORD=$DB_PASSWORD
-            MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+            DB_DATABASE=clms_db
+            DB_USERNAME=clms_user
+            DB_PASSWORD=root
+            MYSQL_ROOT_PASSWORD=root
+            MYSQL_DATABASE=clms_db
+            MYSQL_USER=clms_user
+            MYSQL_PASSWORD=root
             EOL
+            
+            echo "=== Verifying .env file contents ==="
+            cat .env
             
             # Start DB container first
             echo "=== Starting DB Container ==="
+            docker-compose down || true
             docker-compose up -d db
             echo "Waiting for DB to initialize..."
             sleep 20
