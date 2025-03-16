@@ -236,7 +236,7 @@ jobs:
             # Create frontend .env file
             echo "$FRONTEND_ENV" > ./frontend/.env
             
-            # Export MySQL specific variables
+            # Export MySQL specific variables from AWS Secrets
             export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" ./backend/.env | xargs)
             
             echo "=== Verifying MySQL Environment Variables ==="
@@ -245,21 +245,21 @@ jobs:
             echo "DB_PASSWORD: $DB_PASSWORD"
             echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
             
-            # Create a temporary env file for docker-compose with corrected MySQL settings
+            # Create a temporary env file for docker-compose using AWS secrets
             echo "Creating temporary env file for docker-compose..."
             cat > .env << EOL
             # Database connection for Laravel
             DB_HOST=db
             DB_PORT=3306
-            DB_DATABASE=clms_db
-            DB_USERNAME=clms_user
-            DB_PASSWORD=clmspass
+            DB_DATABASE=${DB_DATABASE}
+            DB_USERNAME=clms_user  # Using a non-root user
+            DB_PASSWORD=${DB_PASSWORD}
 
             # MySQL container configuration
-            MYSQL_ROOT_PASSWORD=rootpass
-            MYSQL_DATABASE=clms_db
-            MYSQL_USER=clms_user
-            MYSQL_PASSWORD=clmspass
+            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE=${DB_DATABASE}
+            MYSQL_USER=clms_user  # Using a non-root user
+            MYSQL_PASSWORD=${DB_PASSWORD}
             EOL
             
             echo "=== Verifying .env file contents ==="
