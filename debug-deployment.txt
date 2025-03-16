@@ -1,0 +1,31 @@
+Debugging Documentation: MySQL Container Configuration Issues
+Initial Problem
+The MySQL container was failing to start with the error:
+Debugging Steps
+1. Initial Investigation
+Identified that environment variables were being pulled from AWS Secrets Manager
+Found that DB_USERNAME was set to "root" in the secrets
+MySQL container doesn't allow using "root" as MYSQL_USER
+2. First Attempt - Hardcoded Values
+Result: Still failed because AWS secrets were overriding these values
+3. Second Attempt - Mixed Approach
+Result: Still encountered issues with credential consistency
+4. Final Solution
+Updated AWS Secrets Manager with correct values:
+Modified docker-compose.yml to use proper environment variable format:
+Updated deployment script to use AWS secrets consistently:
+Success Indicators
+MySQL container starts successfully
+Database and user created correctly
+All containers (Laravel, Frontend, phpMyAdmin) start properly
+Container health checks pass
+Key Learnings
+1. MySQL container has specific requirements for user configuration
+Root user must be configured separately from regular users
+3. Environment variables in docker-compose.yml need proper formatting
+Consistency between AWS secrets and container configuration is crucial
+Current Status
+✅ All services running properly
+✅ Database initialized correctly
+✅ User permissions set correctly
+✅ Container health checks passing

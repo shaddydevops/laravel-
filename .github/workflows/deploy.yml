@@ -236,6 +236,9 @@ jobs:
             # Create frontend .env file
             echo "$FRONTEND_ENV" > ./frontend/.env
             
+            # Add or update NEXT_PUBLIC_API_URL to point to the EC2 public IP
+            echo "NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}:8000" >> ./frontend/.env
+            
             # Export MySQL specific variables from AWS Secrets
             export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" ./backend/.env | xargs)
             
