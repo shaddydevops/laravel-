@@ -1,0 +1,130 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      ec2_public_ip: ${{ steps.get-ip.outputs.ec2_public_ip }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: latest
+
+      - name: Terraform Init & Apply
+        working-directory: infrastructure
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        run: |
+          terraform init
+          terraform apply -auto-approve -var="ami_id=${{ secrets.AWS_AMI_ID }}" -var="key_name=${{ secrets.EC2_SSH_PRIVATE_KEY_NAME }}"
+
+      - name: Capture EC2 Public IP
+        id: get-ip
+        working-directory: infrastructure
+        run: |
+          IP=$(terraform output -raw ec2_public_ip | tr -d '\r')
+          if [[ -z "$IP" ]]; then
+            echo "::error:: Failed to retrieve EC2 Public IP"
+            exit 1
+          fi
+          echo "ec2_public_ip=$IP" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build & Push Frontend Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest ./frontend
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-frontend:latest
+
+      - name: Build & Push Backend Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest ./backend
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
+
+  deploy:
+    needs: [terraform, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Retrieve & Prepare Secrets (.env files)
+        run: |
+          mkdir -p backend frontend
+          
+          BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
+          FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
+          
+          if [[ -z "$BACKEND_SECRET" || -z "$FRONTEND_SECRET" ]]; then
+            echo "::error:: Failed to retrieve secrets from AWS"
+            exit 1
+          fi
+          
+          echo "$BACKEND_SECRET" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > backend/.env
+          echo "$FRONTEND_SECRET" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > frontend/.env
+
+      - name: SSH Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ needs.terraform.outputs.ec2_public_ip }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            mkdir -p ~/app/backend ~/app/frontend && cd ~/app
+            
+            cat > backend/.env <<EOF
+            $(cat backend/.env)
+            EOF
+            
+            cat > frontend/.env <<EOF
+            $(cat frontend/.env)
+            NEXT_PUBLIC_API_URL=http://${{ needs.terraform.outputs.ec2_public_ip }}:8000
+            EOF
+            
+            export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" backend/.env | xargs)
+            
+            cat > .env <<EOF
+            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE=${DB_DATABASE}
+            MYSQL_USER=${DB_USERNAME}
+            MYSQL_PASSWORD=${DB_PASSWORD}
+            
+            DB_DATABASE=${DB_DATABASE}
+            DB_USERNAME=${DB_USERNAME}
+            DB_PASSWORD=${DB_PASSWORD}
+            EOF
+            
+            docker-compose pull
+            docker-compose down || true
+            
+            docker-compose up -d db && sleep 20
+            
+            DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
+            if [ "$DB_HEALTH" = "healthy" ]; then 
+              docker-compose up -d app frontend phpmyadmin 
+              echo "✅ Deployment successful!"
+            else 
+              echo "❌ Database unhealthy, check logs:"
+              docker-compose logs db && exit 1 
+            fi
