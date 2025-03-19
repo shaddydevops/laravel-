@@ -158,7 +158,7 @@ jobs:
       - name: SSH Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ env.ec2_public_ip }}
+          host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
@@ -170,7 +170,7 @@ jobs:
             EOF
             
             cat > frontend/.env <<EOF
-            NEXT_PUBLIC_API_URL=http://${{ env.ec2_public_ip }}:8000
+            NEXT_PUBLIC_API_URL=http://${{ needs.terraform.outputs.ec2_public_ip }}:8000
             EOF
             
             export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" backend/.env | xargs)
