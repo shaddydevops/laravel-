@@ -25,7 +25,8 @@ return [
     env('APP_URL', 'http://localhost:8000'),
     'http://app',
     'http://localhost:8000',
-    'http://clms_frontend:3000',  
+    'http://clms_frontend:3000',
+    'http://98.81.174.217:3000'  
     ],
 
     'allowed_origins_patterns' => [],
