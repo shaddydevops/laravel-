@@ -9,7 +9,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     outputs:
-      ec2_public_ip: ${{ steps.get-ip.outputs.ec2_public_ip }}
+      ec2_public_ip: ${{ env.ec2_public_ip }}
     steps:
       - uses: actions/checkout@v3
       - uses: hashicorp/setup-terraform@v2
@@ -30,12 +30,12 @@ jobs:
         id: get-ip
         working-directory: infrastructure
         run: |
-          IP=$(terraform output -raw ec2_public_ip | tr -d '\r')
+          IP=$(terraform output -raw ec2_public_ip 2>/dev/null | tr -d '\r' || echo "")
           if [[ -z "$IP" ]]; then
             echo "::error:: Failed to retrieve EC2 Public IP"
             exit 1
           fi
-          echo "ec2_public_ip=$IP" >> "$GITHUB_OUTPUT"
+          echo "ec2_public_ip=$IP" >> "$GITHUB_ENV"
 
   build-and-push:
     needs: terraform
@@ -43,7 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: docker/login-action@v2
+      - name: Docker Login
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
@@ -75,8 +76,12 @@ jobs:
           BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
           
-          if [[ -z "$BACKEND_SECRET" || -z "$FRONTEND_SECRET" ]]; then
-            echo "::error:: Failed to retrieve secrets from AWS"
+          if [[ -z "$BACKEND_SECRET" ]]; then
+            echo "::error:: BackendSecrets retrieval failed from AWS"
+            exit 1
+          fi
+          if [[ -z "$FRONTEND_SECRET" ]]; then
+            echo "::error:: FrontendSecrets retrieval failed from AWS"
             exit 1
           fi
           
@@ -86,7 +91,7 @@ jobs:
       - name: SSH Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ needs.terraform.outputs.ec2_public_ip }}
+          host: ${{ env.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
@@ -98,8 +103,7 @@ jobs:
             EOF
             
             cat > frontend/.env <<EOF
-            $(cat frontend/.env)
-            NEXT_PUBLIC_API_URL=http://${{ needs.terraform.outputs.ec2_public_ip }}:8000
+            NEXT_PUBLIC_API_URL=http://${{ env.ec2_public_ip }}:8000
             EOF
             
             export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" backend/.env | xargs)
