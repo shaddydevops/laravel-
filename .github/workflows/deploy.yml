@@ -126,76 +126,110 @@ jobs:
           docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest ./backend
           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clms-backend:latest
 
-  deploy:
-    needs: [terraform, build-and-push]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+deploy:
+  needs: [terraform, build-and-push]
+  runs-on: ubuntu-latest
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
 
-      - name: Retrieve & Prepare Secrets (.env files)
-        run: |
-          mkdir -p backend frontend
-          
-          BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
-          FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
-          
-          if [[ -z "$BACKEND_SECRET" ]]; then
-            echo "::error:: BackendSecrets retrieval failed from AWS"
-            exit 1
-          fi
-          if [[ -z "$FRONTEND_SECRET" ]]; then
-            echo "::error:: FrontendSecrets retrieval failed from AWS"
-            exit 1
-          fi
-          
-          echo "$BACKEND_SECRET" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > backend/.env
-          echo "$FRONTEND_SECRET" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > frontend/.env
+    - name: Retrieve & Prepare Secrets (.env files)
+      run: |
+        mkdir -p backend frontend
 
-      - name: SSH Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ needs.terraform.outputs.ec2_public_ip }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script_stop: true
-          script: |
-            mkdir -p ~/app/backend ~/app/frontend && cd ~/app
-            
-            cat > backend/.env <<EOF
-            $(cat backend/.env)
-            EOF
-            
-            cat > frontend/.env <<EOF
-            NEXT_PUBLIC_API_URL=http://${{ needs.terraform.outputs.ec2_public_ip }}:8000
-            EOF
-            
-            export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" backend/.env | xargs)
-            
-            cat > .env <<EOF
-            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-            MYSQL_DATABASE=${DB_DATABASE}
-            MYSQL_USER=${DB_USERNAME}
-            MYSQL_PASSWORD=${DB_PASSWORD}
-            
-            DB_DATABASE=${DB_DATABASE}
-            DB_USERNAME=${DB_USERNAME}
-            DB_PASSWORD=${DB_PASSWORD}
-            EOF
-            
-            docker-compose pull
-            docker-compose down || true
-            
-            docker-compose up -d db && sleep 20
-            
-            DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
-            if [ "$DB_HEALTH" = "healthy" ]; then 
-              docker-compose up -d app frontend phpmyadmin 
-              echo "✅ Deployment successful!"
-            else 
-              echo "❌ Database unhealthy, check logs:"
-              docker-compose logs db && exit 1 
-            fi
+        BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
+        FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
+
+        if [[ -z "$BACKEND_SECRET" ]]; then
+          echo "::error:: BackendSecrets retrieval failed from AWS"
+          exit 1
+        fi
+        if [[ -z "$FRONTEND_SECRET" ]]; then
+          echo "::error:: FrontendSecrets retrieval failed from AWS"
+          exit 1
+        fi
+
+        echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
+        echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
+
+    - name: SSH Prepare EC2 and Deploy Application
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ needs.terraform.outputs.ec2_public_ip }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        script_stop: true
+        script: |
+          echo "🔧 Preparing EC2 instance..."
+
+          # Ensure necessary tools are installed
+          sudo yum install -y yum-utils || true
+          sudo yum-config-manager --disable docker-ce-stable || true
+          sudo yum clean all && sudo rm -rf /var/cache/yum
+
+          # Install Docker
+          sudo amazon-linux-extras install docker -y
+          sudo systemctl start docker && sudo systemctl enable docker
+          sudo usermod -aG docker ec2-user
+
+          # Install Docker Compose
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+            -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+          # Install Git
+          sudo yum install -y git
+
+          # Verify installations
+          docker --version && docker-compose --version && git --version
+
+          # Set up application directories
+          mkdir -p ~/app/backend ~/app/frontend && cd ~/app
+
+          echo "📌 Creating backend .env file..."
+          cat > backend/.env <<EOF
+          $(cat backend/.env || echo "Backend .env source file not found")
+          EOF
+
+          echo "📌 Creating frontend .env file..."
+          cat > frontend/.env <<EOF
+          NEXT_PUBLIC_API_URL=http://${{ needs.terraform.outputs.ec2_public_ip }}:8000
+          EOF
+
+          echo "📌 Creating root .env file..."
+          export $(grep -E "^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|MYSQL_ROOT_PASSWORD)=" backend/.env | xargs || echo "Backend .env missing required variables")
+
+          cat > .env <<EOF
+          MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+          MYSQL_DATABASE=${DB_DATABASE}
+          MYSQL_USER=${DB_USERNAME}
+          MYSQL_PASSWORD=${DB_PASSWORD}
+
+          DB_DATABASE=${DB_DATABASE}
+          DB_USERNAME=${DB_USERNAME}
+          DB_PASSWORD=${DB_PASSWORD}
+          EOF
+
+          echo "⬇️ Pulling latest Docker images..."
+          docker-compose pull
+
+          echo "🛑 Stopping existing containers (if any)..."
+          docker-compose down || true
+
+          echo "🚀 Starting database container..."
+          docker-compose up -d db && sleep 20
+
+          DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
+
+          if [ "$DB_HEALTH" = "healthy" ]; then 
+            echo "✅ Starting application containers..."
+            docker-compose up -d app frontend phpmyadmin 
+            echo "🎉 Deployment successful!"
+          else 
+            echo "❌ Database unhealthy, check logs:"
+            docker-compose logs db && exit 1 
+          fi
