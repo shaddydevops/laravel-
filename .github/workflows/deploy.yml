@@ -156,7 +156,7 @@ jobs:
           echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
 
-      - name: SSH Prepare EC2 and Deploy Application
+      - name: SSH into EC2 and Deploy Application
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
@@ -166,30 +166,28 @@ jobs:
           script: |
             echo "🔧 Preparing EC2 instance..."
 
-            # Ensure necessary tools are installed
-            sudo yum install -y yum-utils || true
-            sudo yum-config-manager --disable docker-ce-stable || true
-            sudo yum clean all && sudo rm -rf /var/cache/yum
-
-            # Install Docker
-            sudo amazon-linux-extras install docker -y
+            # Install necessary dependencies
+            sudo yum install -y yum-utils git docker docker-compose
             sudo systemctl start docker && sudo systemctl enable docker
             sudo usermod -aG docker ec2-user
 
-            # Install Docker Compose
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-
-            # Install Git
-            sudo yum install -y git
-
-            # Verify installations
-            docker --version && docker-compose --version && git --version
-
             # Set up application directories
-            mkdir -p ~/app/backend ~/app/frontend && cd ~/app
+            mkdir -p ~/app && cd ~/app
 
+            # Clone the repository (or pull latest changes)
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/shaddydevops/laravel-.git .
+            else
+              git pull origin main
+            fi
+
+            # Verify if docker-compose.yml exists
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "::error::docker-compose.yml not found in cloned repository"
+              exit 1
+            fi
+
+            # Setup environment files
             echo "📌 Creating backend .env file..."
             cat > backend/.env <<EOF
             $(cat backend/.env || echo "Backend .env source file not found")
@@ -214,6 +212,7 @@ jobs:
             DB_PASSWORD=${DB_PASSWORD}
             EOF
 
+            # Deploy with Docker Compose
             echo "⬇️ Pulling latest Docker images..."
             docker-compose pull
 
