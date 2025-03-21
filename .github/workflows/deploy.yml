@@ -139,7 +139,7 @@ jobs:
 
       - name: Retrieve & Prepare Secrets (.env files)
         run: |
-          mkdir -p backend frontend
+          
 
           BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
@@ -158,8 +158,7 @@ jobs:
           echo "$BACKEND_SECRET" | jq
           echo "$FRONTEND_SECRET" | jq
 
-          echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
-          echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
+
 
       - name: SSH into EC2 and Deploy Application
         uses: appleboy/ssh-action@v0.1.7
