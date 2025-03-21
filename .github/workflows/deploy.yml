@@ -143,6 +143,8 @@ jobs:
 
           BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
           FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
+          echo "$BACKEND_SECRET"
+          echo "$FRONTEND_SECRET""
 
           if [[ -z "$BACKEND_SECRET" ]]; then
             echo "::error:: BackendSecrets retrieval failed from AWS"
