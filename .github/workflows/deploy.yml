@@ -186,6 +186,7 @@ jobs:
             # Clone the repository (or pull latest changes)
             if [ ! -d ".git" ]; then
               git clone https://github.com/shaddydevops/laravel-.git .
+              echo "repo cloned successful"
             else
               git pull origin main
             fi
