@@ -167,6 +167,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
+          envs: BACKEND_SECRET, FRONTEND_SECRET
           script: |
             echo "🔧 Preparing EC2 instance..."
 
