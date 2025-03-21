@@ -167,9 +167,13 @@ jobs:
             echo "🔧 Preparing EC2 instance..."
 
             # Install necessary dependencies
-            sudo yum install -y yum-utils git docker docker-compose
+            sudo yum install -y yum-utils git docker 
             sudo systemctl start docker && sudo systemctl enable docker
             sudo usermod -aG docker ec2-user
+
+            # install docker compose
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
 
             # Set up application directories
             mkdir -p ~/app && cd ~/app
