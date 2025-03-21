@@ -179,10 +179,10 @@ jobs:
             
             echo "docker compose stage start"
             if ! docker-compose version &> /dev/null; then
-              echo "⚡ Docker Compose not found. Installing..."
-              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-              sudo chown ec2-user:ec2-user /usr/local/bin/docker-compose
+              echo "Docker Compose not found. Installing..."
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || { echo "::error:: Failed to download Docker Compose."; exit 1; }
+              sudo chmod +x /usr/local/bin/docker-compose || { echo "::error:: Failed to set permissions for Docker Compose."; exit 1; }
+              sudo chown ec2-user:ec2-user /usr/local/bin/docker-compose || { echo "::error:: Failed to change ownership for Docker Compose."; exit 1; }
               echo " Docker Compose installation completed."
             else
               echo " Docker Compose is already installed $(docker-compose version)"
