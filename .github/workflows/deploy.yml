@@ -168,16 +168,20 @@ jobs:
 
             # Install necessary dependencies
             sudo yum install -y yum-utils git docker 
+            echo "docker stage done"
             sudo systemctl start docker && sudo systemctl enable docker
+            echo "docker enabled"
             sudo usermod -aG docker ec2-user
-
+            echo "docker user created"
+            
+            echo "docker compose stage start"
             if ! command -v docker-compose &> /dev/null; then
               echo "⚡ Docker Compose not found. Installing..."
               sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
-              echo "✅ Docker Compose installation completed."
+              echo " Docker Compose installation completed."
             else
-              echo "✅ Docker Compose is already installed."
+              echo " Docker Compose is already installed."
             fi
 
             # Set up application directories
