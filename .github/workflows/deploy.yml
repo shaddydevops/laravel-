@@ -153,6 +153,9 @@ jobs:
             exit 1
           fi
 
+          echo "$BACKEND_SECRET" | jq
+          echo "$FRONTEND_SECRET" | jq
+          
           echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
           echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
 
