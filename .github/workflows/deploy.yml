@@ -172,7 +172,7 @@ jobs:
             echo "🔧 Preparing EC2 instance..."
 
             # Install necessary dependencies
-            sudo yum install -y yum-utils git docker 
+            sudo yum install -y yum-utils git docker jq
             echo "docker stage done"
             sudo systemctl start docker && sudo systemctl enable docker
             echo "docker enabled"
