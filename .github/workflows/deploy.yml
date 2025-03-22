@@ -167,8 +167,11 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: BACKEND_SECRET, FRONTEND_SECRET
+          envs: BACKEND_SECRET,FRONTEND_SECRET,DOCKER_USERNAME,DOCKER_TOKEN
           script: |
+            # Login to Docker Hub
+            echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            
             echo "🔧 Preparing EC2 instance..."
 
             # Install necessary dependencies
