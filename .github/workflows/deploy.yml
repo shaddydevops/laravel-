@@ -179,7 +179,7 @@ jobs:
           envs: BACKEND_SECRET,FRONTEND_SECRET,DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN
           script: |
             # Login to Docker Hub
-            echo "${{DOCKER_HUB_TOKEN}}" | docker login -u "${{DOCKER_HUB_USERNAME}}" --password-stdin
+            echo "${DOCKER_HUB_TOKEN}" | docker login -u "${DOCKER_HUB_USERNAME}" --password-stdin
             
             echo "🔧 Preparing EC2 instance..."
 
