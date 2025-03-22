@@ -158,6 +158,15 @@ jobs:
           echo "$BACKEND_SECRET" | jq
           echo "$FRONTEND_SECRET" | jq
 
+      - name: Debug Secrets
+        run: |
+          echo "Checking secrets..."
+          if [[ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]]; then
+            echo "::error:: DOCKER_HUB_TOKEN is missing or empty"
+            exit 1
+          else
+            echo "DOCKER_HUB_TOKEN is available."
+          fi
 
 
       - name: SSH into EC2 and Deploy Application
