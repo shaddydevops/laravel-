@@ -179,7 +179,15 @@ jobs:
           envs: BACKEND_SECRET,FRONTEND_SECRET,DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN
           script: |
             # Login to Docker Hub
-            echo "${DOCKER_HUB_TOKEN}" | docker login --username "${DOCKER_HUB_USERNAME}" --password-stdin
+            if [[ -z "$DOCKER_HUB_USERNAME" || -z "$DOCKER_HUB_TOKEN" ]]; then
+              echo "::error:: Missing Docker Hub credentials"
+              exit 1
+            fi
+
+            echo "${DOCKER_HUB_TOKEN}" | docker login --username "${DOCKER_HUB_USERNAME}" --password-stdin || {
+              echo "::error:: Docker login failed. Check your username and token."
+              exit 1
+            }
             
             echo "🔧 Preparing EC2 instance..."
 
