@@ -183,12 +183,12 @@ jobs:
             echo "2${{secrets.DOCKER_HUB_TOKEN}}"
             echo ${{secrets.DOCKER_HUB_TOKEN}}
 
-            if [[ -z "$DOCKER_HUB_USERNAME" || -z "$DOCKER_HUB_TOKEN" ]]; then
+            if [[ -z "${{secrets.DOCKER_HUB_USERNAME}}" || -z "{{$secrets.DOCKER_HUB_TOKEN}}" ]]; then
               echo "::error:: Missing Docker Hub credentials"
               exit 1
             fi
 
-            echo "${DOCKER_HUB_TOKEN}" | docker login --username "${DOCKER_HUB_USERNAME}" --password-stdin || {
+            echo "${{secrets.DOCKER_HUB_USERNAME}}" | docker login --username "${{secrets.DOCKER_HUB_TOKEN}}" --password-stdin || {
               echo "::error:: Docker login failed. Check your username and token."
               exit 1
             }
