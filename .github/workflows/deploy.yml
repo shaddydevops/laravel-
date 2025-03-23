@@ -188,8 +188,7 @@ jobs:
             echo "docker user created"
             
             echo "docker compose stage start"
-            if ! command -v docker-compose &> /dev/null; then
-            echo "❌ Docker Compose not found. Installing..."
+
 
             if ! docker-compose version &> /dev/null && ! docker-compose version &> /dev/null; then
               echo "Docker Compose not found. Installing..."
