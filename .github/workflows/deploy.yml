@@ -176,7 +176,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: BACKEND_SECRET,FRONTEND_SECRET,DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN
+          envs:  BACKEND_SECRET=${{ secrets.BACKEND_SECRET }},FRONTEND_SECRET=${{ secrets.FRONTEND_SECRET }},DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }},DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
           script: |
             # Login to Docker Hub
             if [[ -z "$DOCKER_HUB_USERNAME" || -z "$DOCKER_HUB_TOKEN" ]]; then
