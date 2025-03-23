@@ -176,19 +176,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
           envs: DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }},DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
-          script: |
-            # Login to Docker Hub
-        
-            if [[ -z "${{secrets.DOCKER_HUB_USERNAME}}" || -z "{{$secrets.DOCKER_HUB_TOKEN}}" ]]; then
-              echo "::error:: Missing Docker Hub credentials"
-              exit 1
-            fi
-
-            echo "${{secrets.DOCKER_HUB_TOKEN}}" | docker login --username "${{secrets.DOCKER_HUB_USERNAME}}" --password-stdin || {
-              echo "::error:: Docker login failed. Check your username and token."
-              exit 1
-            }
-            
+          script: |            
             echo "🔧 Preparing EC2 instance..."
 
             # Install necessary dependencies
@@ -257,7 +245,17 @@ jobs:
               exit 1
             fi
 
-          
+            # Login to Docker Hub
+        
+            if [[ -z "${{secrets.DOCKER_HUB_USERNAME}}" || -z "{{$secrets.DOCKER_HUB_TOKEN}}" ]]; then
+              echo "::error:: Missing Docker Hub credentials"
+              exit 1
+            fi
+
+            echo "${{secrets.DOCKER_HUB_TOKEN}}" | docker login --username "${{secrets.DOCKER_HUB_USERNAME}}" --password-stdin || {
+              echo "::error:: Docker login failed. Check your username and token."
+              exit 1
+            }
 
             # Deploy with Docker Compose
             echo "⬇️ Pulling latest Docker images..."
