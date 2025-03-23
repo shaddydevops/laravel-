@@ -188,7 +188,7 @@ jobs:
               exit 1
             fi
 
-            echo "${{secrets.DOCKER_HUB_USERNAME}}" | docker login --username "${{secrets.DOCKER_HUB_TOKEN}}" --password-stdin || {
+            echo "${{secrets.DOCKER_HUB_TOKEN}}" | docker login --username "${{secrets.DOCKER_HUB_USERNAME}}" --password-stdin || {
               echo "::error:: Docker login failed. Check your username and token."
               exit 1
             }
