@@ -179,7 +179,15 @@ jobs:
           script: |            
           
             echo "🔧 Preparing EC2 instance..."
-
+            BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
+            FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
+           
+           
+            # Save secrets to text files
+            echo "creating test files now"
+            echo "$BACKEND_SECRET" 
+            echo "$BACKEND_SECRET" > ~/backend_env.txt
+            echo "$FRONTEND_SECRET" > ~/frontend_env.txt
             # Install necessary dependencies
             sudo yum install -y yum-utils git docker jq
             echo "docker stage done"
@@ -200,7 +208,7 @@ jobs:
             else
               echo " Docker Compose is already installed $(docker-compose version)"
             fi
-            
+
             echo "docker compose stage passed"
             # Set up application directories
             mkdir -p ~/app && cd ~/app
