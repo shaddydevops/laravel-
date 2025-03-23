@@ -179,6 +179,8 @@ jobs:
           script: |            
           
             echo "🔧 Preparing EC2 instance..."
+
+            export AWS_REGION="us-east-1"
             BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
             FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
            
