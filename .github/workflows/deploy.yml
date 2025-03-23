@@ -226,6 +226,7 @@ jobs:
            
            
             # Save secrets to text files
+            echo "creating test files"
             echo "$BACKEND_SECRET" > ~/backend_env.txt
             echo "$FRONTEND_SECRET" > ~/frontend_env.txt
 
