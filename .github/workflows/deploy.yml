@@ -179,6 +179,10 @@ jobs:
           envs:  BACKEND_SECRET=${{ secrets.BACKEND_SECRET }},FRONTEND_SECRET=${{ secrets.FRONTEND_SECRET }},DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }},DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
           script: |
             # Login to Docker Hub
+            echo "1$DOCKER_HUB_TOKEN"
+            echo "2${{secrets.DOCKER_HUB_TOKEN}}"
+            echo ${{secrets.DOCKER_HUB_TOKEN}}
+
             if [[ -z "$DOCKER_HUB_USERNAME" || -z "$DOCKER_HUB_TOKEN" ]]; then
               echo "::error:: Missing Docker Hub credentials"
               exit 1
