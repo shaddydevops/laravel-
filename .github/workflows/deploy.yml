@@ -277,9 +277,9 @@ jobs:
 
             if [ "$DB_HEALTH" = "healthy" ]; then 
               echo "✅ Starting application containers..."
-              docker-compose up -d app frontend phpmyadmin 
+              docker compose up -d app frontend phpmyadmin 
               echo "🎉 Deployment successful!"
             else 
               echo "❌ Database unhealthy, check logs:"
-              docker-compose logs db && exit 1 
+              docker compose logs db && exit 1 
             fi
