@@ -206,6 +206,7 @@ jobs:
             echo "DB_PASSWORD: $DB_PASSWORD"
             echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
 
+            cd ~/app
             # Create the root .env file using the extracted values
             cat > .env <<EOF
             MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
