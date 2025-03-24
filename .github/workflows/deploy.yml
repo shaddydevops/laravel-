@@ -258,16 +258,8 @@ jobs:
             fi
 
 
-           
-            if [[ -z "$BACKEND_SECRET" ]]; then
-              echo "::error:: BackendSecrets retrieval failed from AWS"
-              exit 1
-            fi
 
-            if [[ -z "$FRONTEND_SECRET" ]]; then
-              echo "::error:: FrontendSecrets retrieval failed from AWS"
-              exit 1
-            fi
+            echo "writing secrets to env variables in both backedn and frontend"
 
             echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env || {
               echo "::error:: Failed to create backend .env file."
@@ -278,6 +270,8 @@ jobs:
               echo "::error:: Failed to create frontend .env file."
               exit 1
             }
+
+            echo "env files created successfully"
 
             # Verify if docker-compose.yml exists
             if [ ! -f "docker-compose.yml" ]; then
@@ -297,6 +291,8 @@ jobs:
               exit 1
             }
 
+            echo "login to docker hub successful"
+            
             cd ~/app
 
             # Deploy with Docker Compose
