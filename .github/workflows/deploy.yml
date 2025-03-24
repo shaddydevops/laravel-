@@ -187,6 +187,8 @@ jobs:
             # Append them to ~/.bashrc so they're available in future sessions
             echo "export BACKEND_SECRET='${BACKEND_SECRET}'" >> ~/.bashrc
             echo "export FRONTEND_SECRET='${FRONTEND_SECRET}'" >> ~/.bashrc
+            # Source ~/.bashrc to load the new variables into the current session
+            source ~/.bashrc
 
             # Verify they are set
             echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
@@ -268,21 +270,21 @@ jobs:
 
             # Deploy with Docker Compose
             echo "⬇️ Pulling latest Docker images..."
-            docker compose pull
+            docker-compose pull
 
             echo "🛑 Stopping existing containers (if any)..."
-            docker compose down || true
+            docker-compose down || true
 
             echo "🚀 Starting database container..."
-            docker compose up -d db && sleep 20
+            docker-compose up -d db && sleep 20
 
             DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
 
             if [ "$DB_HEALTH" = "healthy" ]; then 
               echo "✅ Starting application containers..."
-              docker compose up -d app frontend phpmyadmin 
+              docker-compose up -d app frontend phpmyadmin 
               echo "🎉 Deployment successful!"
             else 
               echo "❌ Database unhealthy, check logs:"
-              docker compose logs db && exit 1 
+              docker-compose logs db && exit 1 
             fi
