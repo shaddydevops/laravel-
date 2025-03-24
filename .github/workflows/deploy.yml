@@ -255,22 +255,9 @@ jobs:
             # Clone the repository (or pull latest changes)
             echo "cloning repo stage start"
             
-            if [ ! -d ".git" ]; then
-              echo "Attempting to clone repository..."
-              git clone https://github.com/shaddydevops/laravel-.git . 2>&1 || {
-                echo "Git clone failed. Error: $?"
-                exit 1
-              }
-              echo "Repository cloned successfully"
-            else
-              echo "Repository already exists. Pulling latest changes..."
-              git pull origin main 2>&1 || {
-                echo "Git pull failed. Error: $?"
-                exit 1
-              }
-              echo "Repository updated successfully"
-            fi
+            [ ! -d ".git" ] && git clone https://github.com/shaddydevops/laravel-.git . || git pull origin main
 
+            echo "repo cloned successfully"
 
 
             echo "writing secrets to env variables in both backedn and frontend"
