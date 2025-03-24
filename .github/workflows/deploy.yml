@@ -256,10 +256,19 @@ jobs:
             echo "cloning repo stage start"
             
             if [ ! -d ".git" ]; then
-              git clone https://github.com/shaddydevops/laravel-.git .
-              echo "repo cloned successful"
+              echo "Attempting to clone repository..."
+              git clone https://github.com/shaddydevops/laravel-.git . 2>&1 || {
+                echo "Git clone failed. Error: $?"
+                exit 1
+              }
+              echo "Repository cloned successfully"
             else
-              git pull origin main
+              echo "Repository already exists. Pulling latest changes..."
+              git pull origin main 2>&1 || {
+                echo "Git pull failed. Error: $?"
+                exit 1
+              }
+              echo "Repository updated successfully"
             fi
 
 
