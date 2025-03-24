@@ -248,8 +248,13 @@ jobs:
 
             # Set up application directories
             mkdir -p ~/app && cd ~/app
+            
+            echo "main directory created!"
 
+            
             # Clone the repository (or pull latest changes)
+            echo "cloning repo stage start"
+            
             if [ ! -d ".git" ]; then
               git clone https://github.com/shaddydevops/laravel-.git .
               echo "repo cloned successful"
@@ -292,7 +297,7 @@ jobs:
             }
 
             echo "login to docker hub successful"
-            
+
             cd ~/app
 
             # Deploy with Docker Compose
