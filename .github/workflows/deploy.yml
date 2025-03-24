@@ -194,6 +194,34 @@ jobs:
             echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
             echo "FRONTEND_SECRET is set to: $FRONTEND_SECRET"
 
+            # Extract individual variables from the backend secret JSON
+            export DB_DATABASE=$(echo "$BACKEND_SECRET" | jq -r '.DB_DATABASE')
+            export DB_USERNAME=$(echo "$BACKEND_SECRET" | jq -r '.DB_USERNAME')
+            export DB_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.DB_PASSWORD')
+            export MYSQL_ROOT_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.MYSQL_ROOT_PASSWORD')
+
+            # Verify the extracted variables
+            echo "DB_DATABASE: $DB_DATABASE"
+            echo "DB_USERNAME: $DB_USERNAME"
+            echo "DB_PASSWORD: $DB_PASSWORD"
+            echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
+
+            # Create the root .env file using the extracted values
+            cat > .env <<EOF
+            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE=${DB_DATABASE}
+            MYSQL_USER=${DB_USERNAME}
+            MYSQL_PASSWORD=${DB_PASSWORD}
+
+            DB_DATABASE=${DB_DATABASE}
+            DB_USERNAME=${DB_USERNAME}
+            DB_PASSWORD=${DB_PASSWORD}
+            EOF
+
+            # Optional: Verify the contents of the .env file
+            echo "Contents of the .env file:"
+            cat .env
+
             # Install necessary dependencies
             sudo yum install -y yum-utils git docker jq
             echo "docker stage done"
@@ -267,6 +295,8 @@ jobs:
               echo "::error:: Docker login failed. Check your username and token."
               exit 1
             }
+
+            cd ~/app
 
             # Deploy with Docker Compose
             echo "⬇️ Pulling latest Docker images..."
