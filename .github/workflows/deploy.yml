@@ -184,8 +184,9 @@ jobs:
             BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text --region us-east-1 || echo "")
             FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text --region us-east-1 || echo "")
            
-            export BACKEND_SECRET
-            export FRONTEND_SECRET
+            # Append them to ~/.bashrc so they're available in future sessions
+            echo "export BACKEND_SECRET='${BACKEND_SECRET}'" >> ~/.bashrc
+            echo "export FRONTEND_SECRET='${FRONTEND_SECRET}'" >> ~/.bashrc
 
             # Verify they are set
             echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
