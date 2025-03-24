@@ -184,7 +184,12 @@ jobs:
             BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text --region us-east-1 || echo "")
             FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text --region us-east-1 || echo "")
            
-           
+            export BACKEND_SECRET
+            export FRONTEND_SECRET
+
+            # Verify they are set
+            echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
+            echo "FRONTEND_SECRET is set to: $FRONTEND_SECRET"
 
             # Install necessary dependencies
             sudo yum install -y yum-utils git docker jq
