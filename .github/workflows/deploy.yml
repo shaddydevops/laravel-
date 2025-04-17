@@ -153,6 +153,7 @@ jobs:
           script: |
             # Make sure we're in the home directory
             cd ~
+            sudo yum install -y git
             
             # Check if script exists and is executable
             if [ ! -f "deploy.sh" ]; then
