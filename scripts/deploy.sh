@@ -2,6 +2,11 @@
 
 set -e
 
+echo "🐳 Installing Docker & Docker Compose..."
+sudo yum install -y yum-utils git docker jq
+sudo systemctl start docker && sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
 echo "📦 Setting up app directories..."
 mkdir -p ~/app && cd ~/app
 
@@ -12,10 +17,6 @@ echo "🔐 Writing secrets to .env files..."
 echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
 echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
 
-echo "🐳 Installing Docker & Docker Compose..."
-sudo yum install -y yum-utils git docker jq
-sudo systemctl start docker && sudo systemctl enable docker
-sudo usermod -aG docker ec2-user
 
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
