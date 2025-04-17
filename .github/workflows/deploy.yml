@@ -162,6 +162,13 @@ jobs:
               chmod +x deploy.sh
             fi
 
+            echo "🔍 DEBUG: DOCKER_HUB_TOKEN length = ${#DOCKER_HUB_TOKEN}"
+            # 2) Authenticate to Docker Hub
+            # ————————————————
+            echo "$DOCKER_HUB_TOKEN" \
+              | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
+            echo "done docker!"
+
             # Export credentials for deploy.sh
             export DOCKER_HUB_USERNAME="$DOCKER_HUB_USERNAME"
             export DOCKER_HUB_TOKEN="$DOCKER_HUB_TOKEN"

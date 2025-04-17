@@ -2,8 +2,7 @@
 
 set -e
 
-# Explicitly load environment variables
-source ~/.bashrc
+
 
 # Validate credentials before proceeding
 if [ -z "$DOCKER_HUB_USERNAME" ] || [ -z "$DOCKER_HUB_TOKEN" ]; then
