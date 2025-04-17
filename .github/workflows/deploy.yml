@@ -137,36 +137,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Retrieve & Prepare Secrets (.env files)
-        run: |
-          
-
-          BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
-          FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
-          echo "$BACKEND_SECRET"
-          echo "$FRONTEND_SECRET"
-
-          if [[ -z "$BACKEND_SECRET" ]]; then
-            echo "::error:: BackendSecrets retrieval failed from AWS"
-            exit 1
-          fi
-          if [[ -z "$FRONTEND_SECRET" ]]; then
-            echo "::error:: FrontendSecrets retrieval failed from AWS"
-            exit 1
-          fi
-
-          
-
-      - name: Debug Secrets
-        run: |
-          echo "Checking secrets..."
-          if [[ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]]; then
-            echo "::error:: DOCKER_HUB_TOKEN is missing or empty"
-            exit 1
-          else
-            echo "DOCKER_HUB_TOKEN is available."
-          fi
-
+      - name: Upload deploy script
+        uses: actions/upload-artifact@v3
+        with:
+          name: deploy-script
+          path: scripts/deploy.sh
 
       - name: SSH into EC2 and Deploy Application
         uses: appleboy/ssh-action@v0.1.7
@@ -175,144 +150,208 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }},DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
-          script: |            
+          envs: |
+            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
+            DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
+          script: |
+            # Make sure the script is executable
+            chmod +x deploy.sh
+            ./deploy.sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      # - name: Retrieve & Prepare Secrets (.env files)
+      #   run: |
           
-            echo "🔧 Preparing EC2 instance..."
+
+      #     BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text || echo "")
+      #     FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text || echo "")
+      #     echo "$BACKEND_SECRET"
+      #     echo "$FRONTEND_SECRET"
+
+      #     if [[ -z "$BACKEND_SECRET" ]]; then
+      #       echo "::error:: BackendSecrets retrieval failed from AWS"
+      #       exit 1
+      #     fi
+      #     if [[ -z "$FRONTEND_SECRET" ]]; then
+      #       echo "::error:: FrontendSecrets retrieval failed from AWS"
+      #       exit 1
+      #     fi
+
+          
+
+      # - name: Debug Secrets
+      #   run: |
+      #     echo "Checking secrets..."
+      #     if [[ -z "${{ secrets.DOCKER_HUB_TOKEN }}" ]]; then
+      #       echo "::error:: DOCKER_HUB_TOKEN is missing or empty"
+      #       exit 1
+      #     else
+      #       echo "DOCKER_HUB_TOKEN is available."
+      #     fi
+
+
+      # - name: SSH into EC2 and Deploy Application
+      #   uses: appleboy/ssh-action@v0.1.7
+      #   with:
+      #     host: ${{ needs.terraform.outputs.ec2_public_ip }}
+      #     username: ec2-user
+      #     key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      #     script_stop: true
+      #     envs: DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }},DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
+      #     script: |            
+          
+      #       echo "🔧 Preparing EC2 instance..."
 
             
-            BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text --region us-east-1 || echo "")
-            FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text --region us-east-1 || echo "")
+      #       BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text --region us-east-1 || echo "")
+      #       FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text --region us-east-1 || echo "")
            
-            # Append them to ~/.bashrc so they're available in future sessions
-            echo "export BACKEND_SECRET='${BACKEND_SECRET}'" >> ~/.bashrc
-            echo "export FRONTEND_SECRET='${FRONTEND_SECRET}'" >> ~/.bashrc
-            # Source ~/.bashrc to load the new variables into the current session
-            source ~/.bashrc
+      #       # Append them to ~/.bashrc so they're available in future sessions
+      #       echo "export BACKEND_SECRET='${BACKEND_SECRET}'" >> ~/.bashrc
+      #       echo "export FRONTEND_SECRET='${FRONTEND_SECRET}'" >> ~/.bashrc
+      #       # Source ~/.bashrc to load the new variables into the current session
+      #       source ~/.bashrc
 
-            # Verify they are set
-            echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
-            echo "FRONTEND_SECRET is set to: $FRONTEND_SECRET"
+      #       # Verify they are set
+      #       echo "BACKEND_SECRET is set to: $BACKEND_SECRET"
+      #       echo "FRONTEND_SECRET is set to: $FRONTEND_SECRET"
 
-            # Extract individual variables from the backend secret JSON
-            export DB_DATABASE=$(echo "$BACKEND_SECRET" | jq -r '.DB_DATABASE')
-            export DB_USERNAME=$(echo "$BACKEND_SECRET" | jq -r '.DB_USERNAME')
-            export DB_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.DB_PASSWORD')
-            export MYSQL_ROOT_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.MYSQL_ROOT_PASSWORD')
+      #       # Extract individual variables from the backend secret JSON
+      #       export DB_DATABASE=$(echo "$BACKEND_SECRET" | jq -r '.DB_DATABASE')
+      #       export DB_USERNAME=$(echo "$BACKEND_SECRET" | jq -r '.DB_USERNAME')
+      #       export DB_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.DB_PASSWORD')
+      #       export MYSQL_ROOT_PASSWORD=$(echo "$BACKEND_SECRET" | jq -r '.MYSQL_ROOT_PASSWORD')
 
-            # Verify the extracted variables
-            echo "DB_DATABASE: $DB_DATABASE"
-            echo "DB_USERNAME: $DB_USERNAME"
-            echo "DB_PASSWORD: $DB_PASSWORD"
-            echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
+      #       # Verify the extracted variables
+      #       echo "DB_DATABASE: $DB_DATABASE"
+      #       echo "DB_USERNAME: $DB_USERNAME"
+      #       echo "DB_PASSWORD: $DB_PASSWORD"
+      #       echo "MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD"
 
-            cd ~/app
-            # Create the root .env file using the extracted values
-            cat > .env <<EOF
-            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-            MYSQL_DATABASE=${DB_DATABASE}
-            MYSQL_USER=${DB_USERNAME}
-            MYSQL_PASSWORD=${DB_PASSWORD}
+      #       cd ~/app
+      #       # Create the root .env file using the extracted values
+      #       cat > .env <<EOF
+      #       MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      #       MYSQL_DATABASE=${DB_DATABASE}
+      #       MYSQL_USER=${DB_USERNAME}
+      #       MYSQL_PASSWORD=${DB_PASSWORD}
 
-            DB_DATABASE=${DB_DATABASE}
-            DB_USERNAME=${DB_USERNAME}
-            DB_PASSWORD=${DB_PASSWORD}
-            EOF
+      #       DB_DATABASE=${DB_DATABASE}
+      #       DB_USERNAME=${DB_USERNAME}
+      #       DB_PASSWORD=${DB_PASSWORD}
+      #       EOF
 
-            # Optional: Verify the contents of the .env file
-            echo "Contents of the .env file:"
-            cat .env
+      #       # Optional: Verify the contents of the .env file
+      #       echo "Contents of the .env file:"
+      #       cat .env
 
-            # Install necessary dependencies
-            sudo yum install -y yum-utils git docker jq
-            echo "docker stage done"
-            sudo systemctl start docker && sudo systemctl enable docker
-            echo "docker enabled"
-            sudo usermod -aG docker ec2-user
-            echo "docker user created"
+      #       # Install necessary dependencies
+      #       sudo yum install -y yum-utils git docker jq
+      #       echo "docker stage done"
+      #       sudo systemctl start docker && sudo systemctl enable docker
+      #       echo "docker enabled"
+      #       sudo usermod -aG docker ec2-user
+      #       echo "docker user created"
             
-            echo "docker compose stage start"
+      #       echo "docker compose stage start"
 
-            # if ! command -v docker-compose &> /dev/null; then
-            #   echo "Docker Compose not found. Installing..."
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || { echo "::error:: Failed to download Docker Compose."; exit 1; }
+      #       # if ! command -v docker-compose &> /dev/null; then
+      #       #   echo "Docker Compose not found. Installing..."
+      #       sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || { echo "::error:: Failed to download Docker Compose."; exit 1; }
 
-            sudo chmod +x /usr/local/bin/docker-compose || { echo "::error:: Failed to set permissions for Docker Compose."; exit 1; }
-            sudo chown ec2-user:ec2-user /usr/local/bin/docker-compose || { echo "::error:: Failed to change ownership for Docker Compose."; exit 1; }
-            echo " Docker Compose installation completed."
-            # else
-            #   echo " Docker Compose is already installed $(docker-compose --version)"
-            # fi
+      #       sudo chmod +x /usr/local/bin/docker-compose || { echo "::error:: Failed to set permissions for Docker Compose."; exit 1; }
+      #       sudo chown ec2-user:ec2-user /usr/local/bin/docker-compose || { echo "::error:: Failed to change ownership for Docker Compose."; exit 1; }
+      #       echo " Docker Compose installation completed."
+      #       # else
+      #       #   echo " Docker Compose is already installed $(docker-compose --version)"
+      #       # fi
 
-            echo "docker compose stage passed"
+      #       echo "docker compose stage passed"
 
-            # Set up application directories
-            mkdir -p ~/app && cd ~/app
+      #       # Set up application directories
+      #       mkdir -p ~/app && cd ~/app
             
-            echo "main directory created!"
+      #       echo "main directory created!"
 
             
-            # Clone the repository (or pull latest changes)
-            echo "cloning repo stage start"
+      #       # Clone the repository (or pull latest changes)
+      #       echo "cloning repo stage start"
             
-            [ ! -d ".git" ] && git clone https://github.com/shaddydevops/laravel-.git . || git pull origin main
+      #       [ ! -d ".git" ] && git clone https://github.com/shaddydevops/laravel-.git . || git pull origin main
 
-            echo "repo cloned successfully"
+      #       echo "repo cloned successfully"
 
 
-            echo "writing secrets to env variables in both backedn and frontend"
+      #       echo "writing secrets to env variables in both backedn and frontend"
 
-            echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env || {
-              echo "::error:: Failed to create backend .env file."
-              exit 1
-            }
+      #       echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env || {
+      #         echo "::error:: Failed to create backend .env file."
+      #         exit 1
+      #       }
 
-            echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env || {
-              echo "::error:: Failed to create frontend .env file."
-              exit 1
-            }
+      #       echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env || {
+      #         echo "::error:: Failed to create frontend .env file."
+      #         exit 1
+      #       }
 
-            echo "env files created successfully"
+      #       echo "env files created successfully"
 
-            # Verify if docker-compose.yml exists
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "::error::docker-compose.yml not found in cloned repository"
-              exit 1
-            fi
+      #       # Verify if docker-compose.yml exists
+      #       if [ ! -f "docker-compose.yml" ]; then
+      #         echo "::error::docker-compose.yml not found in cloned repository"
+      #         exit 1
+      #       fi
 
-            # Login to Docker Hub
+      #       # Login to Docker Hub
         
-            if [[ -z "${{secrets.DOCKER_HUB_USERNAME}}" || -z "{{$secrets.DOCKER_HUB_TOKEN}}" ]]; then
-              echo "::error:: Missing Docker Hub credentials"
-              exit 1
-            fi
+      #       if [[ -z "${{secrets.DOCKER_HUB_USERNAME}}" || -z "{{$secrets.DOCKER_HUB_TOKEN}}" ]]; then
+      #         echo "::error:: Missing Docker Hub credentials"
+      #         exit 1
+      #       fi
 
-            echo "${{secrets.DOCKER_HUB_TOKEN}}" | docker login --username "${{secrets.DOCKER_HUB_USERNAME}}" --password-stdin || {
-              echo "::error:: Docker login failed. Check your username and token."
-              exit 1
-            }
+      #       echo "${{secrets.DOCKER_HUB_TOKEN}}" | docker login --username "${{secrets.DOCKER_HUB_USERNAME}}" --password-stdin || {
+      #         echo "::error:: Docker login failed. Check your username and token."
+      #         exit 1
+      #       }
 
-            echo "login to docker hub successful"
+      #       echo "login to docker hub successful"
 
-            cd ~/app
+      #       cd ~/app
 
-            # Deploy with Docker Compose
-            echo "⬇️ Pulling latest Docker images..."
-            docker-compose pull
+      #       # Deploy with Docker Compose
+      #       echo "⬇️ Pulling latest Docker images..."
+      #       docker-compose pull
 
-            echo "🛑 Stopping existing containers (if any)..."
-            docker-compose down || true
+      #       echo "🛑 Stopping existing containers (if any)..."
+      #       docker-compose down || true
 
-            echo "🚀 Starting database container..."
-            docker-compose up -d db && sleep 20
+      #       echo "🚀 Starting database container..."
+      #       docker-compose up -d db && sleep 20
 
-            DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
+      #       DB_HEALTH=$(docker inspect mysql_db --format='{{.State.Health.Status}}' || echo "")
 
-            if [ "$DB_HEALTH" = "healthy" ]; then 
-              echo "✅ Starting application containers..."
-              docker-compose up -d app frontend phpmyadmin 
-              echo "🎉 Deployment successful!"
-            else 
-              echo "❌ Database unhealthy, check logs:"
-              docker-compose logs db && exit 1 
-            fi
+      #       if [ "$DB_HEALTH" = "healthy" ]; then 
+      #         echo "✅ Starting application containers..."
+      #         docker-compose up -d app frontend phpmyadmin 
+      #         echo "🎉 Deployment successful!"
+      #       else 
+      #         echo "❌ Database unhealthy, check logs:"
+      #         docker-compose logs db && exit 1 
+      #       fi
