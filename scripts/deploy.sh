@@ -2,9 +2,14 @@
 
 set -e
 
-# Validate environment variables first
-[ -z "$DOCKER_HUB_USERNAME" ] && { echo "❌ DOCKER_HUB_USERNAME not set"; exit 1; }
-[ -z "$DOCKER_HUB_TOKEN" ] && { echo "❌ DOCKER_HUB_TOKEN not set"; exit 1; }
+# Explicitly load environment variables
+source ~/.bashrc
+
+# Validate credentials before proceeding
+if [ -z "$DOCKER_HUB_USERNAME" ] || [ -z "$DOCKER_HUB_TOKEN" ]; then
+  echo "❌ Docker Hub credentials not set!"
+  exit 1
+fi
 
 echo "🐳 Installing Docker & Docker Compose..."
 sudo yum install -y yum-utils git docker jq
