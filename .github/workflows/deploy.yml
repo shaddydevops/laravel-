@@ -152,7 +152,6 @@ jobs:
 
 
           envs:         DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN,BACKEND_SECRET,FRONTEND_SECRET
-          envs_format:  export {{ .Name }}="{{ .Value }}"
 
           script: |
             cd ~
