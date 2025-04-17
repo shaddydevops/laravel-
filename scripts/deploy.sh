@@ -2,6 +2,10 @@
 
 set -e
 
+# Validate environment variables first
+[ -z "$DOCKER_HUB_USERNAME" ] && { echo "❌ DOCKER_HUB_USERNAME not set"; exit 1; }
+[ -z "$DOCKER_HUB_TOKEN" ] && { echo "❌ DOCKER_HUB_TOKEN not set"; exit 1; }
+
 echo "🐳 Installing Docker & Docker Compose..."
 sudo yum install -y yum-utils git docker jq
 sudo systemctl start docker && sudo systemctl enable docker
