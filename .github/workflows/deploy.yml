@@ -153,9 +153,20 @@ jobs:
           envs: |
             DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
             DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
+            BACKEND_SECRET=${{ steps.get-secrets.outputs.backend_secret }}
+            FRONTEND_SECRET=${{ steps.get-secrets.outputs.frontend_secret }}
           script: |
-            # Make sure the script is executable
-            chmod +x deploy.sh
+            # Make sure we're in the home directory
+            cd ~
+            
+            # Check if script exists and is executable
+            if [ ! -f "deploy.sh" ]; then
+              echo "📥 Downloading deploy script..."
+              curl -O https://raw.githubusercontent.com/shaddydevops/laravel-/main/scripts/deploy.sh
+              chmod +x deploy.sh
+            fi
+            
+            # Execute the deployment script
             ./deploy.sh
 
 
