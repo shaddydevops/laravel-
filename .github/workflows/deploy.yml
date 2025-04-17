@@ -140,6 +140,11 @@ jobs:
 
       - name: SSH into EC2 and Deploy Application
         uses: appleboy/ssh-action@v1
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN:    ${{ secrets.DOCKER_HUB_TOKEN }}
+          BACKEND_SECRET:      ${{ steps.get-secrets.outputs.backend_secret }}
+          FRONTEND_SECRET:     ${{ steps.get-secrets.outputs.frontend_secret }}
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
@@ -150,35 +155,23 @@ jobs:
           envs_format:  export {{ .Name }}="{{ .Value }}"
 
           script: |
-            # Make sure we're in the home directory
             cd ~
 
-            # confirm they’re now set:
+            # sanity check
             echo "🔍 DEBUG: DOCKER_HUB_TOKEN length = ${#DOCKER_HUB_TOKEN}"
 
-            sudo yum install -y git jq
-            
-            # Check if script exists and is executable
-            if [ ! -f "deploy.sh" ]; then
-              echo "📥 Downloading deploy script..."
-              curl -O https://raw.githubusercontent.com/shaddydevops/laravel-/main/scripts/deploy.sh
-              chmod +x deploy.sh
-            fi
+            # install & start Docker
+            sudo yum install -y docker git jq
+            sudo systemctl start docker
 
-            echo "🔍 DEBUG: DOCKER_HUB_TOKEN length = ${#DOCKER_HUB_TOKEN}"
-            
-            # non‑TTY login:
+            # non‐TTY login
             echo "$DOCKER_HUB_TOKEN" \
               | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
-            echo "done docker!"
+            echo "✅ Docker login succeeded"
 
-            # Export credentials for deploy.sh
-            export DOCKER_HUB_USERNAME="$DOCKER_HUB_USERNAME"
-            export DOCKER_HUB_TOKEN="$DOCKER_HUB_TOKEN"
-            export BACKEND_SECRET="$BACKEND_SECRET"
-            export FRONTEND_SECRET="$FRONTEND_SECRET"
-            
-            # Execute the deployment script
+            # fetch & run your deploy.sh
+            curl -sLO https://raw.githubusercontent.com/shaddydevops/laravel-/main/scripts/deploy.sh
+            chmod +x deploy.sh
             ./deploy.sh
 
 
