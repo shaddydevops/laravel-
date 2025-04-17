@@ -139,17 +139,17 @@ jobs:
 
 
       - name: SSH into EC2 and Deploy Application
-        uses: appleboy/ssh-action@v0.1.7
+        uses: appleboy/ssh-action@v1
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN:    ${{ secrets.DOCKER_HUB_TOKEN }}
+          BACKEND_SECRET:      ${{ steps.get-secrets.outputs.backend_secret }}
+          FRONTEND_SECRET:     ${{ steps.get-secrets.outputs.frontend_secret }}
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script_stop: true
-          envs: |
-            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
-            DOCKER_HUB_TOKEN=${{ secrets.DOCKER_HUB_TOKEN }}
-            BACKEND_SECRET=${{ steps.get-secrets.outputs.backend_secret }}
-            FRONTEND_SECRET=${{ steps.get-secrets.outputs.frontend_secret }}
+
           script: |
             # Make sure we're in the home directory
             cd ~
@@ -161,6 +161,12 @@ jobs:
               curl -O https://raw.githubusercontent.com/shaddydevops/laravel-/main/scripts/deploy.sh
               chmod +x deploy.sh
             fi
+
+            # Export credentials for deploy.sh
+            export DOCKER_HUB_USERNAME="$DOCKER_HUB_USERNAME"
+            export DOCKER_HUB_TOKEN="$DOCKER_HUB_TOKEN"
+            export BACKEND_SECRET="$BACKEND_SECRET"
+            export FRONTEND_SECRET="$FRONTEND_SECRET"
             
             # Execute the deployment script
             ./deploy.sh
