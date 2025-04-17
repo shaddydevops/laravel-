@@ -23,7 +23,9 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo chown ec2-user:ec2-user /usr/local/bin/docker-compose
 
 echo "🐙 Deploying with Docker Compose..."
-docker login -u "$DOCKER_HUB_USERNAME" -p "$DOCKER_HUB_TOKEN"
+
+echo "$DOCKER_HUB_TOKEN" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
+# docker login --username "$DOCKER_HUB_USERNAME" --password-stdin "$DOCKER_HUB_TOKEN"
 docker-compose pull
 docker-compose down || true
 docker-compose up -d db
