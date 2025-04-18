@@ -15,6 +15,12 @@ sudo yum install -y yum-utils git docker jq
 sudo systemctl start docker && sudo systemctl enable docker
 sudo usermod -aG docker ec2-user
 
+echo "🧼 Cleaning up Docker system before deployment..."
+docker system prune -a --volumes -f || true
+
+echo "💽 Checking disk space..."
+df -h
+
 echo "📦 Setting up app directories..."
 mkdir -p ~/app && cd ~/app
 
