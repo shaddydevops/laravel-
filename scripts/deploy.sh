@@ -41,6 +41,29 @@ echo "🔐 Writing secrets to .env files..."
 echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
 echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env
 
+echo "🔄 Generating unified .env for Docker Compose..."
+
+# Create/overwrite root .env file
+> .env
+
+# Merge backend/.env
+if [ -f ./backend/.env ]; then
+  echo "📥 Merging backend/.env..."
+  grep -v '^\s*#' ./backend/.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' >> .env
+fi
+
+# Merge frontend/.env
+if [ -f ./frontend/.env ]; then
+  echo "📥 Merging frontend/.env..."
+  grep -v '^\s*#' ./frontend/.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' >> .env
+fi
+
+# Remove duplicates by variable name (last one wins)
+awk -F= '!a[$1]++' .env > .env.tmp && mv .env.tmp .env
+
+echo "✅ Root .env ready for Docker Compose"
+
+
 
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
