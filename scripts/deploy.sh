@@ -21,6 +21,16 @@ mkdir -p ~/app && cd ~/app
 echo "🔄 Cloning or pulling repository..."
 [ ! -d ".git" ] && git clone https://github.com/shaddydevops/laravel-.git . || git pull origin main
 
+
+echo "🔐 Fetching secrets from AWS Secrets Manager..."
+BACKEND_SECRET=$(aws secretsmanager get-secret-value --secret-id BackendSecrets --query SecretString --output text --region us-east-1 || echo "")
+FRONTEND_SECRET=$(aws secretsmanager get-secret-value --secret-id FrontendSecrets --query SecretString --output text --region us-east-1 || echo "")
+
+if [ -z "$BACKEND_SECRET" ] || [ -z "$FRONTEND_SECRET" ]; then
+  echo "❌ Failed to retrieve one or both secrets."
+  exit 1
+fi
+
 echo "🔐 Writing secrets to .env files..."
 echo "$BACKEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > backend/.env
 echo "$FRONTEND_SECRET" | jq -r 'to_entries | map("\(.key)=\(.value)") | .[]' > frontend/.env

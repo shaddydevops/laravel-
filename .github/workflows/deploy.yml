@@ -140,11 +140,11 @@ jobs:
 
       - name: SSH into EC2 and Deploy Application
         uses: appleboy/ssh-action@v1
-        env:
-          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-          DOCKER_HUB_TOKEN:    ${{ secrets.DOCKER_HUB_TOKEN }}
-          BACKEND_SECRET:      ${{ steps.get-secrets.outputs.backend_secret }}
-          FRONTEND_SECRET:     ${{ steps.get-secrets.outputs.frontend_secret }}
+        # env:
+        #   DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+        #   DOCKER_HUB_TOKEN:    ${{ secrets.DOCKER_HUB_TOKEN }}
+        #   BACKEND_SECRET:      ${{ steps.get-secrets.outputs.backend_secret }}
+        #   FRONTEND_SECRET:     ${{ steps.get-secrets.outputs.frontend_secret }}
         with:
           host: ${{ needs.terraform.outputs.ec2_public_ip }}
           username: ec2-user
