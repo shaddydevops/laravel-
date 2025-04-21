@@ -73,16 +73,16 @@ echo "🐙 Deploying with Docker Compose..."
 
 echo "$DOCKER_HUB_TOKEN" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
 # docker login --username "$DOCKER_HUB_USERNAME" --password-stdin "$DOCKER_HUB_TOKEN"
-sudo docker-compose pull
-sudo docker-compose down || true
-sudo docker-compose up -d db
+docker-compose pull
+docker-compose down || true
+docker-compose up -d db
 sleep 20
 
 if [ "$(docker inspect mysql_db --format='{{.State.Health.Status}}')" = "healthy" ]; then
-  sudo docker-compose up -d app frontend phpmyadmin cadvisor prometheus grafana
+  docker-compose up -d app frontend phpmyadmin cadvisor prometheus grafana
   echo "✅ Deployment Successful!"
 else
   echo "❌ DB Container Unhealthy"
-  sudo docker-compose logs db
+  docker-compose logs db
   exit 1
 fi
