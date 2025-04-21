@@ -60,96 +60,57 @@ services:
     depends_on: ["db"]
     networks: ["laravel_network"]
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - laravel_network
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - laravel_network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - laravel_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - laravel_network
+    depends_on:
+      - prometheus
+
+
+
 volumes:
   dbdata: {}
+  grafana-storage: {}
 
 networks:
   laravel_network: {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# version: '3.8'
-
-# services:
-#   frontend:
-#     image: "shaddydevops/clms-frontend:latest"
-#     container_name: clms_frontend
-#     ports:
-#       - "3000:3000"
-#     env_file:
-#       - ./frontend/.env
-#     networks:
-#       - laravel_network
-#     depends_on:
-#       - app
-
-#   app:
-#     image: "shaddydevops/clms-backend:latest"
-#     container_name: laravel_app
-#     ports:
-#       - "8000:80"
-#     env_file:
-#       - ./backend/.env    
-#     environment:
-#       DB_HOST: db      
-#       DB_PORT: 3306    
-#       DB_DATABASE: ${DB_DATABASE}
-#       DB_USERNAME: ${DB_USERNAME}
-#       DB_PASSWORD: ${DB_PASSWORD}
-#     networks:
-#       - laravel_network    
-#     depends_on:
-#       db:
-#         condition: service_healthy  
-#     command: >
-#       sh -c "
-#         until mysqladmin ping -h\"$$DB_HOST\" --silent; do sleep 3; done && \
-#         php artisan migrate --force && \
-#         php artisan db:seed --force && \
-#         apache2-foreground"
-
-#   db:
-#     image: mysql:8.0    
-#     container_name: mysql_db    
-#     environment:
-#       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-#       MYSQL_DATABASE: ${DB_DATABASE}
-#       MYSQL_USER: ${DB_USER}      
-#       MYSQL_PASSWORD: ${DB_PASSWORD}      
-#     volumes:
-#       - dbdata:/var/lib/mysql    
-#     networks:
-#       - laravel_network    
-#     healthcheck:
-#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-#       interval: "10s"
-#       timeout: "5s"
-#       retries: "5"
-
-#   phpmyadmin:
-#     image: "phpmyadmin/phpmyadmin"
-#     container_name: "phpmyadmin"
-#     ports: ["8081:80"]
-#     environment: {PMA_HOST: "db"}
-#     depends_on: ["db"]
-#     networks: ["laravel_network"]
-
-# volumes: {dbdata: {}}
-
-# networks: {laravel_network: {}}
